@@ -29,6 +29,7 @@ export default defineConfig({
         { label: 'Profiles', link: '/profiles/' },
         { label: 'Guard', link: '/guard/' },
         { label: 'Layering', link: '/layering/' },
+        { label: 'Whitepaper', link: '/whitepaper/' },
         { label: 'FAQ', link: '/faq/' },
       ],
     }),
