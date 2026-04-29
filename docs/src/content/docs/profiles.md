@@ -1,7 +1,13 @@
 ---
 title: Profiles
-description: All 8 BlastShield profiles — base, secrets, terraform, gcloud, aws, azure, kubectl, gh — and their blocked/allowed operations.
+description: All 8 BlastShield profiles — base, secrets, terraform, gcloud, aws, azure, kubectl, gh — enforcing read-only cloud access.
 ---
+
+## Read-Only Philosophy
+
+All cloud profiles enforce a **default-deny** posture for mutations. The AI agent can inspect resources (`list`, `describe`, `get`, `plan`) but cannot modify them. Any mutating operation — `apply`, `deploy`, `create`, `delete`, `update` — requires the user to run it manually.
+
+This is by design: the agent plans, **you** execute.
 
 ## Profile System
 
@@ -11,14 +17,14 @@ Profiles are [SBPL](https://reverse.put.as/wp-content/uploads/2011/09/Apple-Sand
 
 | Profile | Always Loaded | Purpose |
 |---------|:---:|---------|
-| `base` | ✅ | Minimum viable sandbox: deny-all default, project writes, system reads |
-| `secrets` | ✅ | Protect SSH keys, cloud creds, browser data, shell init files |
-| `terraform` | Auto | State file protection, backend config locks, credential denial |
-| `gcloud` | Auto | GCP credential protection, SA key denial, ADC protection |
-| `aws` | Auto | AWS credential protection, SSO cache denial, state locks |
-| `azure` | Auto | Azure credential protection, MSAL cache denial, ARM protection |
-| `kubectl` | Auto | Kubeconfig write protection, SA token denial, Helm lock protection |
-| `gh` | Auto | GitHub auth protection, workflow file protection, CODEOWNERS locks |
+| `base` | ✅ | Deny-all default, project writes, system reads |
+| `secrets` | ✅ | Protect SSH keys, cloud creds, browser data |
+| `terraform` | Auto | State file protection, deny all tfstate writes |
+| `gcloud` | Auto | GCP credential protection, ADC denial |
+| `aws` | Auto | AWS credential protection, SSO cache denial |
+| `azure` | Auto | Azure credential protection, MSAL cache denial |
+| `kubectl` | Auto | Kubeconfig write protection, SA token denial |
+| `gh` | Auto | GitHub auth protection, workflow file locks |
 
 ### Custom Profiles
 
@@ -49,6 +55,9 @@ The foundation of every BlastShield session. Establishes a deny-by-default polic
 | Project writes | Allowed in current working directory |
 | System reads | Allowed for standard system paths |
 | Process execution | Allowed for standard binary paths |
+| Network | Outbound allowed, inbound allowed |
+| Mount/unmount | Denied |
+| IOKit | Denied |
 
 ## secrets (Always Loaded)
 
@@ -66,80 +75,96 @@ Protects the most sensitive files on your system — the ones that, if read by a
 
 ## terraform
 
-Prevents destruction of Terraform infrastructure by blocking access to state files and backend configurations.
+Prevents ALL state mutations — not just `destroy`. The agent can `plan` but not `apply`. State files are read-only.
 
 | Blocked | Allowed |
 |---------|---------|
-| `terraform destroy` | `terraform plan` |
-| `terraform apply -destroy` | `terraform apply` (create/update) |
-| State file writes | `terraform init, fmt, validate` |
-| Backend config writes | `terraform show, output, state list` |
-| Provider replacement | `terraform import, taint` |
+| `terraform apply` | `terraform plan` |
+| `terraform destroy` | `terraform init, fmt, validate` |
+| `terraform import, taint, untaint` | `terraform show, output, console` |
+| `terraform refresh` | `state list, state show` |
+| `terraform state rm/mv` | `workspace list, workspace select` |
+| ALL tfstate writes | `terraform providers, version, graph` |
+| Plan file writes (`.tfplan`) | |
+| Provider/module downloads | |
 
 **Auto-detection trigger:** `*.tf` files in project directory
 
 ## gcloud
 
-Protects GCP credentials and prevents destructive gcloud operations.
+Protects GCP credentials and blocks ALL mutating gcloud operations.
 
 | Blocked | Allowed |
 |---------|---------|
-| Credential reads | `gcloud * list/describe` |
-| Service account key reads | `gcloud * create/deploy` |
-| Application default credentials | `gcloud * get-credentials` |
-| ADC writes | `gcloud auth status` |
+| `gcloud * delete/create/deploy/update` | `gcloud * list/describe/get` |
+| `gcloud * add/remove/patch/set` | `gcloud auth status` |
+| `gcloud * enable/disable/submit` | `gcloud config list/get` |
+| `gcloud builds submit` | `gcloud version, help` |
+| `gcloud app deploy` | |
+| Service account key reads | |
 
 **Auto-detection trigger:** `.gcloudignore`, `cloudbuild.yaml`, `app.yaml`
 
 ## aws
 
-Protects AWS credentials and prevents destructive AWS CLI operations.
+Protects AWS credentials and blocks ALL mutating AWS CLI operations.
 
 | Blocked | Allowed |
 |---------|---------|
-| `~/.aws/credentials` reads | `~/.aws/config` reads |
-| SSO token cache reads | `aws * describe/list/get` |
-| State file writes | `aws * create/run/start` |
-| CDK/SAM state writes | `aws sts get-caller-identity` |
+| `aws * delete/create/put/update` | `aws * describe-/list-/get-` |
+| `aws * deploy/terminate/run-` | `aws s3 ls, cp (download), presign` |
+| `aws * start-/stop-/reboot` | `aws sts get-caller-identity` |
+| `aws * authorize/revoke/send` | `aws logs describe-/get-/filter-` |
+| Credential reads | `aws dynamodb scan/query/get-item` |
+| SSO token cache reads | `aws iam list-/get-` |
+| CDK/SAM state writes | `aws lambda list-, invoke` |
 
 **Auto-detection trigger:** `serverless.yml`, `template.yaml`, `cdk.json`, `samconfig.toml`
 
 ## azure
 
-Protects Azure credentials and prevents destructive Azure CLI operations.
+Protects Azure credentials and blocks ALL mutating Azure CLI operations.
 
 | Blocked | Allowed |
 |---------|---------|
-| `~/.azure` reads | `az * list/show` |
-| SP credential reads | `az * create/deploy` |
-| ARM template writes | `az * get-credentials` |
-| MSAL token cache | `az account show` |
+| `az * delete/create/update/deploy` | `az * list/show` |
+| `az * set/remove/add/lock/unlock` | `az account show/list` |
+| `az * scale/restart` | `az version, help` |
+| ALL `~/.azure` access | |
 
 **Auto-detection trigger:** `azure-pipelines.yml`, `local.settings.json`
 
 ## kubectl
 
-Protects Kubernetes cluster access by blocking kubeconfig modifications and service account token access.
+Protects Kubernetes cluster access — read-only inspection only.
 
 | Blocked | Allowed |
 |---------|---------|
-| Kubeconfig writes | Kubeconfig reads |
-| Service account tokens | `kubectl get/describe/logs` |
-| Helm chart lock writes | `kubectl apply/exec/port-forward` |
-| Namespace manifest writes | `kubectl config use-context` |
+| `kubectl apply/create/delete` | `kubectl get/describe/logs` |
+| `kubectl patch/scale/exec` | `kubectl top, events` |
+| `kubectl taint/cordon/uncordon/drain` | `kubectl api-resources/versions/explain` |
+| `kubectl rollout restart/undo` | `kubectl auth can-i` |
+| `kubectl label/annotate/set` | `kubectl config view/get-contexts` |
+| `kubectl expose/run/cp/debug` | `kubectl rollout status/history` |
+| Kubeconfig writes | `kubectl version` |
+| Helm install/upgrade/delete | Helm list/status/show/search |
 
 **Auto-detection trigger:** `kustomization.yaml`, `Chart.yaml`, `skaffold.yaml`
 
 ## gh (GitHub CLI)
 
-Protects GitHub authentication and prevents destructive repository operations.
+Protects GitHub authentication — prevents destructive repo operations and CI manipulation.
 
 | Blocked | Allowed |
 |---------|---------|
-| `hosts.yml` reads | `gh repo list/view/clone` |
-| Workflow file writes | `gh pr/issue create` |
-| CODEOWNERS writes | `gh release create` |
-| Dependabot config writes | `gh auth status` |
+| `gh repo delete/edit/rename` | `gh repo list/view/clone/fork` |
+| `gh pr merge/close` | `gh pr list/view/diff/checkout` |
+| `gh release delete` | `gh release create/list/view/download` |
+| `gh workflow disable/enable` | `gh workflow list/view` |
+| `gh run cancel` | `gh issue create/list/view/comment` |
+| `gh api -X DELETE/PUT/PATCH` | `gh pr create` |
+| Workflow file writes | `gh auth status` |
+| CODEOWNERS writes | `gh secret set` |
 
 **Auto-detection trigger:** `.github/` directory
 

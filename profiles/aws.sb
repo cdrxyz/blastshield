@@ -1,26 +1,35 @@
-;; cloudseal aws profile — prevent destructive AWS operations
+;; blastshield aws profile — read-only AWS access
 ;;
-;; BLOCKED operations (via credential/file protection):
-;;   aws s3 rb                     — delete bucket
-;;   aws s3 rm --recursive         — delete all objects in bucket
-;;   aws ec2 terminate-instances   — terminate EC2 instances
-;;   aws rds delete-db-instance    — delete RDS database
-;;   aws cloudformation delete-stack — delete entire stack
-;;   aws dynamodb delete-table     — delete DynamoDB table
-;;   aws iam delete-role/policy/user — IAM destruction
-;;   aws lambda delete-function    — delete Lambda function
-;;   aws eks delete-cluster         — delete EKS cluster
-;;   aws secretsmanager delete-secret — delete secrets
+;; PHILOSOPHY: Only read operations are permitted. Any command that mutates
+;; AWS resources must be run manually by the user. The AI agent can inspect
+;; and plan, never execute.
 ;;
-;; ALLOWED operations:
-;;   aws s3 ls, cp, sync (upload)
-;;   aws ec2 describe/run/start/stop
-;;   aws rds describe/create
-;;   aws cloudformation describe/create/validate
-;;   aws dynamodb describe/scan/query/put-item
-;;   aws iam list/get/create-role
-;;   aws lambda list/invoke
-;;   aws sts get-caller-identity (whoami)
+;; BLOCKED commands (via credential protection + guard):
+;;   aws s3 rb / rm                     — delete bucket/objects
+;;   aws ec2 terminate-instances / run-instances
+;;   aws rds delete-db-instance / create-db-instance
+;;   aws cloudformation delete-stack / create-stack / update-stack
+;;   aws dynamodb delete-table / create-table
+;;   aws iam delete-role / create-role / put-role-policy
+;;   aws lambda delete-function / create-function / update-function-code
+;;   aws eks delete-cluster / create-cluster
+;;   aws secretsmanager delete-secret / create-secret / put-secret-value
+;;   aws ssm send-command / put-parameter
+;;   aws sns subscribe / publish
+;;   aws sqs create-queue / delete-queue
+;;   aws apigateway delete-rest-api / create-deployment
+;;   aws ecs delete-service / create-service / update-service
+;;
+;; ALLOWED commands:
+;;   aws s3 ls / cp (download only) / presign
+;;   aws ec2 describe-*
+;;   aws rds describe-*
+;;   aws cloudformation describe-*/validate-template
+;;   aws dynamodb describe-*/scan/query/get-item/put-item (data ops ok)
+;;   aws iam list-*/get-*
+;;   aws lambda list-*/invoke (read-only invoke)
+;;   aws sts get-caller-identity
+;;   aws logs describe-*/get-*/filter-log-events
 ;;
 ;; Parameters: _HOME, _PROJECT_DIR
 
@@ -28,13 +37,13 @@
 
 ;; ═══ AWS Credential Protection ═══
 
-;; Already in secrets profile, explicit here for standalone use
+;; Deny reading AWS credentials (blocks ALL authenticated operations)
 (deny file-read* (literal "_HOME/.aws/credentials"))
 (deny file-write* (subpath "_HOME/.aws"))
 
 ;; ═══ AWS CLI Config Restriction ═══
 
-;; Allow reading config (region, output format) but deny writing
+;; Deny writing config (prevents profile manipulation / credential injection)
 (deny file-write* (literal "_HOME/.aws/config"))
 
 ;; ═══ SSO Cache ═══
@@ -45,7 +54,7 @@
 
 ;; ═══ CLI Binary Store ═══
 
-;; Deny writing to the CLI binary store (prevents replacing aws binary)
+;; Deny writing to CLI binary store (prevents replacing aws binary)
 (deny file-write* (subpath "_HOME/.aws/cli"))
 
 ;; ═══ SAM/CDK State ═══
@@ -65,3 +74,9 @@
 ;; Prevent writing to SAM local runtime
 (deny file-write* (subpath "_TMPDIR/sam-"))
 (deny file-write* (subpath "/tmp/sam-"))
+
+;; ═══ Environment Variable Credential Files ═══
+
+;; Deny reading common AWS credential file locations
+(deny file-read* (regex #".*aws.*credentials.*"))
+(deny file-read* (regex #".*aws.*config.*\.json$"))
