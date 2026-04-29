@@ -319,9 +319,33 @@ MINIMAL
     fi
     rm -f "$tmp_profile"
 
-    # Test: assembled profile with multiple layers is valid
-    "$BLASTSHIELD" --help > /dev/null 2>&1  # just verify it doesn't crash
-    pass "integration: blastshield wrapper runs without crashing"
+    # Test: wrapper command with no extra profiles does not trip nounset on empty arrays
+    if wrapper_out=$("$BLASTSHIELD" --no-detect /usr/bin/true 2>&1); then
+        pass "integration: blastshield wrapper runs with no detected profiles"
+    else
+        fail "integration: blastshield wrapper with --no-detect failed" "$wrapper_out"
+    fi
+
+    # Test: auto-detection path handles an initially empty extra_profiles array
+    if autodetect_out=$(cd "$REPO_DIR" && "$BLASTSHIELD" /usr/bin/true 2>&1); then
+        pass "integration: blastshield wrapper runs with auto-detected profiles"
+    else
+        fail "integration: blastshield wrapper with auto-detect failed" "$autodetect_out"
+    fi
+
+    # Test: explicit profiles can run repeatedly without mktemp collisions or trap failures
+    literal_tmp="${TMPDIR:-/tmp}/blastshield.XXXXXX.sb"
+    explicit_out1=""
+    explicit_out2=""
+    rm -f "$literal_tmp"
+    if explicit_out1=$("$BLASTSHIELD" -p gh --no-detect /usr/bin/true 2>&1) &&
+        explicit_out2=$("$BLASTSHIELD" -p gh --no-detect /usr/bin/true 2>&1) &&
+        [[ ! -e "$literal_tmp" ]]; then
+        pass "integration: blastshield wrapper runs explicit profile twice"
+    else
+        fail "integration: blastshield explicit profile repeat failed" "First: $explicit_out1
+Second: $explicit_out2"
+    fi
 
 else
     skip "integration tests: sandbox-exec not available (not on macOS)"

@@ -13,6 +13,7 @@ set -euo pipefail
 readonly VERSION="0.1.0"
 readonly SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 readonly PROFILES_DIR="${SCRIPT_DIR}/profiles"
+BLASTSHIELD_TMP_PROFILE=""
 
 # Colors (disabled if not a terminal)
 if [[ -t 1 ]]; then
@@ -76,7 +77,7 @@ detect_cloud_clis() {
             detected+=("$cli")
         fi
     done
-    echo "${detected[*]}"
+    echo "${detected[*]-}"
 }
 
 # Auto-detect relevant cloud profiles based on directory contents
@@ -344,8 +345,18 @@ HELP
         local detected
         detected=$(detect_cloud_profiles)
         for profile in $detected; do
-            # Don't add duplicates
-            if [[ ! " ${extra_profiles[*]} " =~ " $profile " ]]; then
+            local already_selected=false
+            if [[ ${#extra_profiles[@]} -gt 0 ]]; then
+                local existing_profile
+                for existing_profile in "${extra_profiles[@]}"; do
+                    if [[ "$existing_profile" == "$profile" ]]; then
+                        already_selected=true
+                        break
+                    fi
+                done
+            fi
+
+            if ! $already_selected; then
                 extra_profiles+=("$profile")
                 $verbose && info "Auto-detected profile: $profile"
             fi
@@ -353,14 +364,17 @@ HELP
     fi
 
     # Assemble full profile list
-    profiles+=("${extra_profiles[@]}")
+    if [[ ${#extra_profiles[@]} -gt 0 ]]; then
+        profiles+=("${extra_profiles[@]}")
+    fi
 
     $verbose && info "Profiles: ${profiles[*]}"
 
     # Create temporary assembled profile
     local tmp_profile
-    tmp_profile=$(mktemp "${TMPDIR:-/tmp}/blastshield.XXXXXX.sb")
-    trap 'rm -f "$tmp_profile"' EXIT
+    tmp_profile=$(mktemp "${TMPDIR:-/tmp}/blastshield.sb.XXXXXX")
+    BLASTSHIELD_TMP_PROFILE="$tmp_profile"
+    trap 'if [[ -n "${BLASTSHIELD_TMP_PROFILE:-}" ]]; then rm -f "$BLASTSHIELD_TMP_PROFILE"; fi' EXIT
 
     assemble_profile "$tmp_profile" "${profiles[@]}"
 
