@@ -337,6 +337,35 @@ MINIMAL
         fail "integration: blastshield wrapper with --no-detect failed" "$wrapper_out"
     fi
 
+    # Test: runtime guard intercepts Hermit/repo-local Terraform shims before execution
+    hermit_project=$(mktemp -d "${TMPDIR:-/tmp}/blastshield-hermit-project.XXXXXX")
+    mkdir -p "$hermit_project/bin" "$hermit_project/.hermit"
+    hermit_marker="$hermit_project/terraform-ran"
+    cat > "$hermit_project/bin/terraform" << 'HERMIT_TERRAFORM'
+#!/usr/bin/env bash
+printf '%s\n' "$*" > "$HERMIT_MARKER"
+HERMIT_TERRAFORM
+    chmod +x "$hermit_project/bin/terraform"
+
+    hermit_apply_out=""
+    if hermit_apply_out=$(cd "$hermit_project" && HERMIT_MARKER="$hermit_marker" PATH="$hermit_project/bin:$PATH" "$BLASTSHIELD" --no-detect terraform apply 2>&1); then
+        fail "integration: blastshield blocks Hermit terraform apply" "Expected mutating command to be blocked"
+    elif [[ -e "$hermit_marker" ]]; then
+        fail "integration: blastshield blocks Hermit terraform apply" "Hermit terraform was executed: $(cat "$hermit_marker")"
+    else
+        pass "integration: blastshield blocks Hermit terraform apply"
+    fi
+
+    hermit_plan_out=""
+    if hermit_plan_out=$(cd "$hermit_project" && HERMIT_MARKER="$hermit_marker" PATH="$hermit_project/bin:$PATH" "$BLASTSHIELD" --no-detect terraform plan 2>&1) &&
+        [[ -f "$hermit_marker" ]] &&
+        grep -q '^plan$' "$hermit_marker"; then
+        pass "integration: blastshield allows Hermit terraform plan"
+    else
+        fail "integration: blastshield allows Hermit terraform plan" "$hermit_plan_out"
+    fi
+    rm -rf "$hermit_project"
+
     # Test: assembled profile substitutes _PROJECT_DIR and allows project writes
     project_probe="$REPO_DIR/.blastshield-project-write-test"
     rm -f "$project_probe"

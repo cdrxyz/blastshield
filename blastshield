@@ -13,7 +13,9 @@ set -euo pipefail
 readonly VERSION="0.1.0"
 readonly SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 readonly PROFILES_DIR="${SCRIPT_DIR}/profiles"
+readonly GUARD_SCRIPT="${SCRIPT_DIR}/helpers/blastshield-guard"
 BLASTSHIELD_TMP_PROFILE=""
+BLASTSHIELD_TMP_GUARD_DIR=""
 
 # Colors (disabled if not a terminal)
 if [[ -t 1 ]]; then
@@ -40,6 +42,15 @@ info()  { echo -e "${CYAN}[blastshield]${NC} $*"; }
 warn()  { echo -e "${YELLOW}[blastshield]${NC} $*"; }
 error() { echo -e "${RED}[blastshield]${NC} $*" >&2; }
 die()   { error "$@"; exit 1; }
+
+cleanup() {
+    if [[ -n "${BLASTSHIELD_TMP_PROFILE:-}" ]]; then
+        rm -f "$BLASTSHIELD_TMP_PROFILE"
+    fi
+    if [[ -n "${BLASTSHIELD_TMP_GUARD_DIR:-}" ]]; then
+        rm -rf "$BLASTSHIELD_TMP_GUARD_DIR"
+    fi
+}
 
 # ─── Profile Assembly ────────────────────────────────────────────────────
 
@@ -206,6 +217,27 @@ run_sandboxed() {
     return $exit_code
 }
 
+setup_runtime_guards() {
+    if [[ ! -x "$GUARD_SCRIPT" ]]; then
+        warn "blastshield-guard not found; command-argument filtering disabled"
+        return 0
+    fi
+
+    local target_dir
+    target_dir=$(mktemp -d "${TMPDIR:-/tmp}/blastshield.guard.XXXXXX")
+    BLASTSHIELD_TMP_GUARD_DIR="$target_dir"
+
+    BLASTSHIELD_GUARD_INSTALL_QUIET=1 "$GUARD_SCRIPT" install "$target_dir"
+
+    if find "$target_dir" -maxdepth 1 -type f -print -quit 2>/dev/null | grep -q .; then
+        export PATH="$target_dir:$PATH"
+        export BLASTSHIELD_GUARD_MODE="block"
+    else
+        rm -rf "$target_dir"
+        BLASTSHIELD_TMP_GUARD_DIR=""
+    fi
+}
+
 # ─── Diagnostics ──────────────────────────────────────────────────────────
 
 show_violations() {
@@ -246,6 +278,7 @@ main() {
     local profiles=("${DEFAULT_PROFILES[@]}")
     local extra_profiles=()
     local clean_env=false
+    local guard_enabled=true
     auto_detect=true
     local verbose=false
     local diagnostic_mode=""
@@ -261,6 +294,10 @@ main() {
                 ;;
             --no-detect)
                 auto_detect=false
+                shift
+                ;;
+            --no-guard)
+                guard_enabled=false
                 shift
                 ;;
             -c|--clean-env)
@@ -293,6 +330,7 @@ USAGE:
 OPTIONS:
     -p, --profile NAME    Load additional profile (repeatable)
                           Built-in: terraform, gcloud, aws, azure, kubectl, gh
+    --no-guard            Disable automatic command-argument guard injection
     --no-detect           Disable auto-detection of cloud profiles
     -c, --clean-env       Strip environment variables (removes API keys from env)
     -v, --verbose         Verbose output
@@ -390,11 +428,16 @@ HELP
     local tmp_profile
     tmp_profile=$(mktemp "${TMPDIR:-/tmp}/blastshield.sb.XXXXXX")
     BLASTSHIELD_TMP_PROFILE="$tmp_profile"
-    trap 'if [[ -n "${BLASTSHIELD_TMP_PROFILE:-}" ]]; then rm -f "$BLASTSHIELD_TMP_PROFILE"; fi' EXIT
+    trap cleanup EXIT
 
     assemble_profile "$tmp_profile" "${profiles[@]}"
 
     $verbose && info "Assembled profile: $tmp_profile"
+
+    if $guard_enabled; then
+        setup_runtime_guards
+        $verbose && [[ -n "${BLASTSHIELD_TMP_GUARD_DIR:-}" ]] && info "Runtime guard: $BLASTSHIELD_TMP_GUARD_DIR"
+    fi
 
     # Clean environment if requested
     if $clean_env; then
@@ -403,6 +446,7 @@ HELP
             HOME PATH SHELL TERM LANG USER TMPDIR
             SSH_AUTH_SOCK EDITOR VISUAL
             XDG_CACHE_HOME XDG_CONFIG_HOME XDG_DATA_HOME XDG_STATE_HOME
+            BLASTSHIELD_GUARD_MODE
             ANTHROPIC_BASE_URL OPENAI_BASE_URL GOOGLE_BASE_URL
             # Cloud SDK base URLs (safe, not secrets)
             AWS_DEFAULT_REGION AWS_REGION

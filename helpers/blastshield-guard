@@ -254,6 +254,12 @@ require_auth() {
     echo -e "${RED}   $cli ${args[*]}${NC}"
     echo ""
     echo -e "${YELLOW}Only read-only commands are allowed without authentication.${NC}"
+
+    if [[ "${BLASTSHIELD_GUARD_MODE:-sudo}" == "block" ]]; then
+        echo -e "${YELLOW}BlastShield runtime guard is active; run this command yourself outside the agent sandbox.${NC}"
+        exit 1
+    fi
+
     echo -e "${YELLOW}Authenticate to proceed, or Ctrl+C to cancel.${NC}"
     echo -e "${YELLOW}Consider running this command yourself instead.${NC}"
     echo ""
@@ -285,10 +291,13 @@ find_real_binary() {
 
 install_guards() {
     local target_dir="${1:-$GUARD_DIR}"
+    local quiet="${BLASTSHIELD_GUARD_INSTALL_QUIET:-0}"
     mkdir -p "$target_dir"
 
-    echo "Installing blastshield-guard wrappers in $target_dir"
-    echo ""
+    if [[ "$quiet" != "1" ]]; then
+        echo "Installing blastshield-guard wrappers in $target_dir"
+        echo ""
+    fi
 
     local group cli patterns real_binary
     for group in $READONLY_PATTERNS; do
@@ -302,7 +311,7 @@ install_guards() {
         )
 
         if [[ -z "$real_binary" ]]; then
-            echo "  ⏭  $cli — not found on system, skipping"
+            [[ "$quiet" == "1" ]] || echo "  ⏭  $cli — not found on system, skipping"
             continue
         fi
 
@@ -311,7 +320,7 @@ install_guards() {
 #!/usr/bin/env bash
 # blastshield-guard wrapper for $cli
 # Auto-generated — do not edit
-source "$GUARD_DIR/blastshield-guard" 2>/dev/null
+source "$GUARD_DIR/blastshield-guard"
 
 cli="$cli"
 args=("\$@")
@@ -331,14 +340,16 @@ WRAPPER
         mut_patterns=$(get_mutating_patterns "$cli" 2>/dev/null || echo "")
         mut_count=$(echo "$mut_patterns" | tr ',' '\n' | wc -l | tr -d ' ')
 
-        echo "  ✅ $cli → $real_binary ($ro_count read-only, $mut_count guarded)"
+        [[ "$quiet" == "1" ]] || echo "  ✅ $cli → $real_binary ($ro_count read-only, $mut_count guarded)"
     done
 
-    echo ""
-    echo "Add to your PATH (before real CLIs):"
-    echo "  export PATH=\"$target_dir:\$PATH\""
-    echo ""
-    echo "For AI agents, add to their environment config."
+    if [[ "$quiet" != "1" ]]; then
+        echo ""
+        echo "Add to your PATH (before real CLIs):"
+        echo "  export PATH=\"$target_dir:\$PATH\""
+        echo ""
+        echo "For AI agents, add to their environment config."
+    fi
 }
 
 uninstall_guards() {

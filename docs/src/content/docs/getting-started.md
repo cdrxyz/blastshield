@@ -39,7 +39,15 @@ blastshield -p kubectl bash
 
 ### Install Command-Level Guards
 
-For an additional layer of defense that filters destructive **subcommands** (e.g. `terraform destroy`), install the guard wrappers:
+BlastShield automatically injects temporary guard wrappers ahead of your current `PATH` when launching an agent. This catches globally installed CLIs and repo-local/Hermit shims that are resolved by command name, hard-blocking mutating subcommands such as `terraform apply` inside the agent sandbox.
+
+To disable automatic guard injection:
+
+```bash
+blastshield --no-guard claude
+```
+
+You can also install persistent guard wrappers for regular shell use outside BlastShield:
 
 ```bash
 # Install guard wrappers
@@ -49,7 +57,7 @@ blastshield-guard install
 export PATH="$HOME/.blastshield/guard:$PATH"
 ```
 
-Now `terraform destroy` will prompt for Touch ID or your sudo password, while `terraform plan` passes through immediately.
+Persistent wrappers prompt for Touch ID or your sudo password. Runtime wrappers inside `blastshield` hard-block mutating commands and ask you to run them yourself outside the agent sandbox.
 
 ### Check Status
 

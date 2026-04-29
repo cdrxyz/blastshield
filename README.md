@@ -30,9 +30,11 @@ blastshield -p terraform -p aws opencode
 blastshield -p kubectl bash
 ```
 
-### Layer 2: `blastshield-guard` — Command-Argument Filter (sudo/Touch ID)
+### Layer 2: `blastshield-guard` — Command-Argument Filter
 
-`sandbox-exec` operates at file/process level and cannot filter by command arguments. BlastShield Guard wraps cloud CLIs and requires biometric/password authentication before allowing destructive subcommands.
+`sandbox-exec` operates at file/process level and cannot filter by command arguments. BlastShield Guard wraps cloud CLIs and blocks destructive subcommands. When launched through `blastshield`, temporary runtime wrappers are injected automatically ahead of your current `PATH`, including repo-local and Hermit shims invoked by command name.
+
+Persistent wrappers are also available for regular shell use outside BlastShield:
 
 ```bash
 # Install guard wrappers
@@ -42,7 +44,7 @@ blastshield-guard install
 export PATH="$HOME/.blastshield/guard:$PATH"
 ```
 
-Now `terraform destroy` prompts for Touch ID. `terraform plan` passes through immediately.
+Persistent wrappers prompt for Touch ID. Runtime wrappers hard-block mutating commands inside the agent sandbox. `terraform plan` passes through immediately.
 
 ## Quick Start
 
@@ -63,9 +65,8 @@ blastshield codex --full-auto
 # Run OpenCode sandboxed
 blastshield opencode
 
-# Install command-level guards
-blastshield-guard install ~/.blastshield/guard
-export PATH="$HOME/.blastshield/guard:$PATH"
+# Optional: disable automatic command-level guards
+blastshield --no-guard claude --dangerously-skip-permissions
 
 # Check status
 blastshield --status
@@ -112,6 +113,8 @@ blastshield -p kubectl -- safehouse opencode
 ```
 
 ### Guard Installation
+
+Runtime guards are enabled automatically by `blastshield`. Use `--no-guard` to disable them for a launch.
 
 ```bash
 # Install to default location
@@ -297,7 +300,7 @@ BlastShield scans your project directory for indicator files:
 - **sandbox-exec is deprecated** by Apple (since 10.15). Still works on Sequoia. No replacement exists for ad-hoc CLI sandboxing.
 - **Network is open by default.** If a secret enters the process (env var without `-c`, or fetched via credential helper), it can be exfiltrated. The sandbox operates at file paths, not content.
 - **Keychain access is allowed** so credential helpers work. An agent can perform authenticated actions (e.g., `git push`) but cannot read raw tokens from files.
-- **Layer 2 (guard) is a speed bump**, not a hard boundary. A determined agent that specifies full paths to CLIs bypasses PATH wrappers. Layer 1 (sandbox) is the hard boundary.
+- **Layer 2 (guard) is a speed bump**, not a hard boundary. A determined agent that specifies full paths to CLIs bypasses PATH wrappers. Runtime guards cover Hermit and repo-local shims when invoked by command name. Layer 1 (sandbox) is the hard boundary.
 - **No nested sandboxes.** macOS doesn't support recursive `sandbox-exec`. If an app already runs in a sandbox, use `--no-sandbox` equivalent.
 
 ## Related Projects

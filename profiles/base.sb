@@ -22,6 +22,7 @@
     (literal "/dev/tty")
     (regex #"^/dev/ttys"))
 (allow file-read* file-write*
+    (literal "/dev/null")
     (literal "/dev/ptmx")
     (literal "/dev/tty")
     (regex #"^/dev/ttys"))

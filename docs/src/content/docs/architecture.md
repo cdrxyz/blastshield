@@ -79,9 +79,9 @@ This layer handles what `sandbox-exec` cannot see: **which subcommands the agent
 
 ### How It Works
 
-1. **PATH wrappers** — `blastshield-guard install` creates wrapper scripts for each guarded CLI
+1. **PATH wrappers** — `blastshield` automatically creates temporary wrapper scripts for each guarded CLI found on PATH
 2. **Intercept** — When the agent runs `terraform destroy`, the wrapper (found first on PATH) intercepts it
-3. **Authenticate** — Destructive subcommands require Touch ID or sudo password authentication
+3. **Block** — Destructive subcommands are blocked inside the agent sandbox
 4. **Pass-through** — Non-destructive commands execute immediately without interruption
 
 ### Guarded Commands
@@ -97,7 +97,7 @@ This layer handles what `sandbox-exec` cannot see: **which subcommands the agent
 
 ### Important Note
 
-Layer 2 is a **speed bump**, not a hard boundary. A determined agent that specifies the full path to a CLI (e.g. `/usr/local/bin/terraform destroy`) bypasses PATH wrappers. **Layer 1 (sandbox) is the hard boundary** — it blocks credential access regardless of how the CLI is invoked.
+Layer 2 is a **speed bump**, not a hard boundary. A determined agent that specifies the full path to a CLI (e.g. `/usr/local/bin/terraform destroy` or `./bin/terraform destroy`) bypasses PATH wrappers. Runtime wrappers cover Hermit and repo-local shims when they are invoked by command name. **Layer 1 (sandbox) is the hard boundary** — it blocks credential access regardless of how the CLI is invoked.
 
 ## Why Both Layers?
 
