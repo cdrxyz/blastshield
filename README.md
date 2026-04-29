@@ -1,5 +1,8 @@
 # BlastShield 🔒
 
+> [!WARNING]
+> BlastShield is still in beta and may contain bugs. Validate it in a non-production environment before depending on it for safety-critical workflows.
+
 **Sandbox AI coding agents with kernel-level protection against destructive cloud CLI commands.**
 
 Uses macOS `sandbox-exec` (Apple Seatbelt) to enforce filesystem restrictions that prevent AI agents from executing destructive operations — `terraform destroy`, `gcloud compute instances delete`, `aws s3 rb`, `az group delete`, `kubectl delete namespace` — even when running with `--dangerously-skip-permissions` or equivalent unrestricted modes.
