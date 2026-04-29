@@ -326,6 +326,32 @@ MINIMAL
         fail "integration: blastshield wrapper with --no-detect failed" "$wrapper_out"
     fi
 
+    # Test: assembled profile substitutes _PROJECT_DIR and allows project writes
+    project_probe="$REPO_DIR/.blastshield-project-write-test"
+    rm -f "$project_probe"
+    if project_out=$("$BLASTSHIELD" --no-detect /bin/sh -c "printf ok > '$project_probe' && rm '$project_probe'" 2>&1) &&
+        [[ ! -e "$project_probe" ]]; then
+        pass "integration: blastshield substituted profile allows project writes"
+    else
+        rm -f "$project_probe"
+        fail "integration: blastshield project write failed" "$project_out"
+    fi
+
+    # Test: Codex can create runtime state under CODEX_HOME/HOME without broad home writes
+    codex_home=$(mktemp -d "${TMPDIR:-/tmp}/blastshield-codex-home.XXXXXX")
+    mkdir -p "$codex_home/.codex"
+    if codex_state_out=$(HOME="$codex_home" "$BLASTSHIELD" --no-detect /bin/sh -c 'mkdir -p "$HOME/.codex/sessions/2026" "$HOME/.codex/log" "$HOME/.codex/cache" && printf ok > "$HOME/.codex/sessions/2026/test.jsonl" && printf ok > "$HOME/.codex/models_cache.json" && printf ok > "$HOME/.codex/log/codex-tui.log"' 2>&1); then
+        pass "integration: blastshield allows Codex runtime state writes"
+    else
+        fail "integration: blastshield Codex runtime state write failed" "$codex_state_out"
+    fi
+    if HOME="$codex_home" "$BLASTSHIELD" --no-detect /bin/sh -c 'printf bad > "$HOME/.codex/config.toml"' >/dev/null 2>&1; then
+        fail "integration: blastshield blocks Codex config writes" "Expected config write to be denied"
+    else
+        pass "integration: blastshield blocks Codex config writes"
+    fi
+    rm -rf "$codex_home"
+
     # Test: auto-detection path handles an initially empty extra_profiles array
     if autodetect_out=$(cd "$REPO_DIR" && "$BLASTSHIELD" /usr/bin/true 2>&1); then
         pass "integration: blastshield wrapper runs with auto-detected profiles"

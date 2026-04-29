@@ -28,6 +28,9 @@
 ;; Write to user cache (package managers need this)
 (allow file-write* (subpath "_HOME/.cache"))
 
+;; Codex runtime state. Keep auth/config/rules read-only below.
+(allow file-write* (subpath "_HOME/.codex"))
+
 ;; ═══ Filesystem: Protected Write Paths ═══
 ;; Block writes to dangerous locations even within project dir
 
@@ -41,6 +44,13 @@
 
 ;; No writing to MCP config (prevents agent adding its own tools)
 (deny file-write* (subpath "_PROJECT_DIR/.mcp.json"))
+
+;; No writing to Codex auth, configuration, or extension points
+(deny file-write* (literal "_HOME/.codex/auth.json"))
+(deny file-write* (literal "_HOME/.codex/config.toml"))
+(deny file-write* (subpath "_HOME/.codex/rules"))
+(deny file-write* (subpath "_HOME/.codex/skills"))
+(deny file-write* (subpath "_HOME/.codex/memories"))
 
 ;; ═══ Process Execution ═══
 

@@ -43,6 +43,10 @@ die()   { error "$@"; exit 1; }
 
 # ─── Profile Assembly ────────────────────────────────────────────────────
 
+sed_escape_replacement() {
+    printf '%s' "$1" | sed -e 's/[\/&]/\\&/g'
+}
+
 # Resolve a profile name to its file path
 resolve_profile() {
     local name="$1"
@@ -123,6 +127,15 @@ assemble_profile() {
     local output_file="$1"
     shift
     local profile_names=("$@")
+    local home_dir project_dir tmp_dir
+    home_dir="$(cd "$HOME" && pwd -P)"
+    project_dir="$(pwd -P)"
+    tmp_dir="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
+
+    local home_replacement project_replacement tmp_replacement
+    home_replacement="$(sed_escape_replacement "$home_dir")"
+    project_replacement="$(sed_escape_replacement "$project_dir")"
+    tmp_replacement="$(sed_escape_replacement "$tmp_dir")"
 
     {
         # Header
@@ -153,7 +166,10 @@ assemble_profile() {
 
             # Strip the (version 1) line from included profiles — we already emitted it
             # Also strip (deny default) from included profiles — base handles it
-            sed -E '/^\(version 1\)$/d; /^\(deny default\)$/d; /^;; .*Profile:/d' "$path"
+            sed -E '/^\(version 1\)$/d; /^\(deny default\)$/d; /^;; .*Profile:/d' "$path" |
+                sed -e "s/_HOME/$home_replacement/g" \
+                    -e "s/_PROJECT_DIR/$project_replacement/g" \
+                    -e "s/_TMPDIR/$tmp_replacement/g"
 
             echo ""
         done
