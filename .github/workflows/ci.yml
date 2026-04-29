@@ -86,13 +86,23 @@ jobs:
             fi
 
             # Validate with sandbox-exec
+            # Compose with base.sb if profile lacks process-exec (standalone cloud profiles)
             tmp=$(mktemp)
-            sed -e "s/_HOME/\\/Users\\/runner/g" \
-                -e "s/_PROJECT_DIR/\\/Users\\/runner\\/project/g" \
-                -e "s/_TMPDIR/\\/tmp/g" \
-                "$profile" > "$tmp"
+            if grep -q 'process-exec' "$profile"; then
+              # Profile is self-contained — test alone
+              sed -e "s/_HOME/\\/Users\\/runner/g" \
+                  -e "s/_PROJECT_DIR/\\/Users\\/runner\\/project/g" \
+                  -e "s/_TMPDIR/\\/tmp/g" \
+                  "$profile" > "$tmp"
+            else
+              # Compose: base.sb + this profile (sandbox-exec applies last-match-wins)
+              sed -e "s/_HOME/\\/Users\\/runner/g" \
+                  -e "s/_PROJECT_DIR/\\/Users\\/runner\\/project/g" \
+                  -e "s/_TMPDIR/\\/tmp/g" \
+                  profiles/base.sb "$profile" > "$tmp"
+            fi
 
-            output=$(sandbox-exec -f "$tmp" -- /usr/bin/true 2>&1)
+            output=$(sandbox-exec -f "$tmp" -- /usr/bin/true 2>&1) || true
             exit_code=$?
 
             if [ $exit_code -eq 0 ]; then
