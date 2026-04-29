@@ -7,6 +7,9 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'BlastShield',
+      social: [
+        { icon: 'github', label: 'GitHub', href: 'https://github.com/cdrxyz/blastshield' },
+      ],
       defaultLocale: 'root',
       locales: {
         root: {
