@@ -114,7 +114,7 @@ detect_cloud_profiles() {
         profiles+=("gh")
     fi
 
-    echo "${profiles[*]}"
+    echo "${profiles[*]:-}"
 }
 
 # Assemble a combined sandbox profile from multiple source profiles

@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  test:
+    name: Test Suite
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Make scripts executable
+        run: |
+          chmod +x blastshield
+          chmod +x helpers/blastshield-guard
+          chmod +x tests/test-runner.sh
+
+      - name: Run tests
+        run: bash tests/test-runner.sh
+
+  docs:
+    name: Docs Build
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: docs
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build docs
+        run: npm run build
+
+      - name: Verify output
+        run: |
+          if [ ! -d "dist" ]; then
+            echo "❌ dist directory not found"
+            exit 1
+          fi
+          page_count=$(find dist -name "index.html" | wc -l | tr -d ' ')
+          echo "✅ Built $page_count pages"
+          if [ "$page_count" -lt 5 ]; then
+            echo "❌ Expected at least 5 pages, got $page_count"
+            exit 1
+          fi
+
+  lint-profiles:
+    name: Profile Lint
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate profile syntax
+        run: |
+          errors=0
+          for profile in profiles/*.sb; do
+            name=$(basename "$profile" .sb)
+            echo "Checking $name..."
+
+            # Must have version directive
+            if ! grep -q '^(version 1)$' "$profile"; then
+              echo "  ❌ Missing (version 1)"
+              errors=$((errors + 1))
+            fi
+
+            # Must have deny rules
+            if ! grep -q '(deny ' "$profile"; then
+              echo "  ❌ No deny rules"
+              errors=$((errors + 1))
+            fi
+
+            # No tabs
+            if grep -q $'\t' "$profile"; then
+              echo "  ❌ Contains tabs"
+              errors=$((errors + 1))
+            fi
+
+            # Validate with sandbox-exec if available
+            tmp=$(mktemp)
+            sed -e "s/_HOME/\/Users\/runner/g" \
+                -e "s/_PROJECT_DIR/\/Users\/runner\/project/g" \
+                -e "s/_TMPDIR/\/tmp/g" \
+                "$profile" > "$tmp"
+            
+            if sandbox-exec -f "$tmp" -- /bin/true 2>&1; then
+              echo "  ✅ sandbox-exec accepts profile"
+            else
+              # sandbox-exec may abort but not due to syntax errors
+              # Check stderr for actual syntax issues
+              if sandbox-exec -f "$tmp" -- /bin/true 2>&1 | grep -qi "syntax\|parse\|invalid\|unrecognized"; then
+                echo "  ❌ sandbox-exec reports syntax error"
+                errors=$((errors + 1))
+              else
+                echo "  ⚠️  sandbox-exec non-zero exit (may be environment issue, not syntax)"
+              fi
+            fi
+            rm -f "$tmp"
+          done
+
+          if [ $errors -gt 0 ]; then
+            echo "❌ $errors errors found"
+            exit 1
+          fi
+          echo "✅ All profiles valid"

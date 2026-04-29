@@ -2,3 +2,6 @@
 *.swp
 *.swo
 *~
+docs/node_modules/
+docs/.astro/
+docs/dist/
