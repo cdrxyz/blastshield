@@ -10,6 +10,9 @@ export default defineConfig({
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/cdrxyz/blastshield' },
       ],
+      editLink: {
+        baseUrl: 'https://github.com/cdrxyz/blastshield/edit/master/docs/src/content/docs/',
+      },
       defaultLocale: 'root',
       locales: {
         root: {
