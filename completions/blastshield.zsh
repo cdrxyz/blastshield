@@ -1,6 +1,6 @@
-#compdef cloudseal
+#compdef blastshield
 
-_cloudseal() {
+_blastshield() {
     local -a opts profiles agents
     opts=(
         {-p,--profile}'[Load additional profile]:profile:->profiles'
@@ -27,4 +27,4 @@ _cloudseal() {
     esac
 }
 
-_cloudseal "$@"
+_blastshield "$@"
