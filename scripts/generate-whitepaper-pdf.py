@@ -14,7 +14,7 @@ from reportlab.platypus import (
 from reportlab.platypus.flowables import KeepTogether
 
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "..", "docs", "public")
-OUTPUT_FILE = os.path.join(OUTPUT_DIR, "blastshield-whitepaper.pdf")
+OUTPUT_FILE = os.path.join(OUTPUT_DIR, "2026-04-29-whitepaper.pdf")
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 

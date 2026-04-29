@@ -4,7 +4,7 @@ description: Why existing sandboxing solutions fall short for AI coding agents, 
 ---
 
 :::caution[Download the PDF]
-Prefer reading offline? Download the [academic-format PDF whitepaper](/blastshield/blastshield-whitepaper.pdf) (Cedar Labs, April 2026).
+Prefer reading offline? Download the [academic-format PDF whitepaper](/blastshield/2026-04-29-whitepaper.pdf) (Cedar Labs, April 2026).
 :::
 
 ## The Problem
