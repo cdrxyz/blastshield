@@ -115,6 +115,30 @@ blastshield -p aws -- safehouse codex --full-auto
 blastshield -p kubectl -- safehouse opencode
 ```
 
+### With Conductor
+
+[Conductor](https://www.conductor.build/) runs Codex and Claude Code in isolated local workspaces on your Mac. BlastShield can protect those sessions if it wraps the process that actually launches the agent CLI.
+
+Two patterns work:
+
+1. Launch Conductor itself through BlastShield if Conductor directly spawns `codex` or `claude` as child processes.
+2. Configure Conductor to launch `blastshield codex ...` or `blastshield claude ...` instead of the raw agent CLI.
+
+What matters is the process tree. `sandbox-exec` applies to the process and child processes started inside BlastShield. If Conductor launches the real agent inside that tree, the sandbox and runtime guard apply. If Conductor hands work off to an already-running service outside that process tree, BlastShield does not.
+
+Example:
+
+```bash
+blastshield conductor
+```
+
+Or, if Conductor lets you customize the agent command it runs:
+
+```bash
+blastshield codex --full-auto
+blastshield claude --dangerously-skip-permissions
+```
+
 ### Guard Installation
 
 Runtime guards are enabled automatically by `blastshield`. Use `--no-guard` to disable them for a launch.
