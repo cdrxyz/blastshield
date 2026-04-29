@@ -1,4 +1,4 @@
-# CloudSeal 🔒
+# BlastShield 🔒
 
 **Sandbox AI coding agents with kernel-level protection against destructive cloud CLI commands.**
 
@@ -6,37 +6,37 @@ Uses macOS `sandbox-exec` (Apple Seatbelt) to enforce filesystem restrictions th
 
 ## Why This Exists
 
-Existing macOS sandbox tools for AI agents ([sandvault](https://github.com/webcoyote/sandvault), [agent-safehouse](https://github.com/eugene1g/agent-safehouse), [agent-seatbelt](https://github.com/CJHwong/agent-seatbelt)) focus on protecting secrets and dotfiles. **None of them address cloud CLI destructive commands.** An agent with access to your cloud credentials can delete your infrastructure in seconds. CloudSeal fills that gap.
+Existing macOS sandbox tools for AI agents ([sandvault](https://github.com/webcoyote/sandvault), [agent-safehouse](https://github.com/eugene1g/agent-safehouse), [agent-seatbelt](https://github.com/CJHwong/agent-seatbelt)) focus on protecting secrets and dotfiles. **None of them address cloud CLI destructive commands.** An agent with access to your cloud credentials can delete your infrastructure in seconds. BlastShield fills that gap.
 
 Built-in agent sandboxes (Claude's `/sandbox`, Codex's approval policies) only gate their own tools. An agent that shells out via Bash or Python bypasses all of it. OS-level enforcement can't be bypassed — the kernel doesn't care what the agent thinks it's allowed to do.
 
 ## Two Layers of Defense
 
-### Layer 1: `cloudseal` — Filesystem/Process Sandbox (sandbox-exec)
+### Layer 1: `blastshield` — Filesystem/Process Sandbox (sandbox-exec)
 
 Kernel-level. Blocks access to credential files, state files, and protected paths. The agent process physically cannot read or write the files it would need to authenticate destructive operations.
 
 ```bash
 # Run Claude Code with all auto-detected cloud protections
-cloudseal claude --dangerously-skip-permissions
+blastshield claude --dangerously-skip-permissions
 
 # Run Codex with explicit profiles
-cloudseal -p terraform -p aws codex
+blastshield -p terraform -p aws codex
 
 # Run any command
-cloudseal -p kubectl bash
+blastshield -p kubectl bash
 ```
 
-### Layer 2: `cloudseal-guard` — Command-Argument Filter (sudo/Touch ID)
+### Layer 2: `blastshield-guard` — Command-Argument Filter (sudo/Touch ID)
 
-`sandbox-exec` operates at file/process level and cannot filter by command arguments. CloudSeal Guard wraps cloud CLIs and requires biometric/password authentication before allowing destructive subcommands.
+`sandbox-exec` operates at file/process level and cannot filter by command arguments. BlastShield Guard wraps cloud CLIs and requires biometric/password authentication before allowing destructive subcommands.
 
 ```bash
 # Install guard wrappers
-cloudseal-guard install
+blastshield-guard install
 
 # Add to PATH (before real CLIs)
-export PATH="$HOME/.cloudseal/guard:$PATH"
+export PATH="$HOME/.blastshield/guard:$PATH"
 ```
 
 Now `terraform destroy` prompts for Touch ID. `terraform plan` passes through immediately.
@@ -45,21 +45,21 @@ Now `terraform destroy` prompts for Touch ID. `terraform plan` passes through im
 
 ```bash
 # Clone
-git clone https://github.com/cdrxyz/cloudseal.git
-cd cloudseal
+git clone https://github.com/cdrxyz/blastshield.git
+cd blastshield
 
 # Add to PATH
 export PATH="$PWD:$PATH"
 
 # Run Claude Code sandboxed
-cloudseal claude --dangerously-skip-permissions
+blastshield claude --dangerously-skip-permissions
 
 # Install command-level guards
-cloudseal-guard install ~/.cloudseal/guard
-export PATH="$HOME/.cloudseal/guard:$PATH"
+blastshield-guard install ~/.blastshield/guard
+export PATH="$HOME/.blastshield/guard:$PATH"
 
 # Check status
-cloudseal --status
+blastshield --status
 ```
 
 ## Usage
@@ -68,56 +68,56 @@ cloudseal --status
 
 ```bash
 # Auto-detect cloud profiles from project directory
-cloudseal claude --dangerously-skip-permissions
+blastshield claude --dangerously-skip-permissions
 
 # Explicit profiles
-cloudseal -p terraform codex
-cloudseal -p gcloud -p aws opencode
+blastshield -p terraform codex
+blastshield -p gcloud -p aws opencode
 
 # Clean environment (strip API keys from env vars)
-cloudseal -c claude --dangerously-skip-permissions
+blastshield -c claude --dangerously-skip-permissions
 
 # Disable auto-detection
-cloudseal --no-detect claude
+blastshield --no-detect claude
 ```
 
 ### With Other Sandbox Tools
 
-CloudSeal composes with existing tools — layer them for defense in depth:
+BlastShield composes with existing tools — layer them for defense in depth:
 
 ```bash
-# cloudseal (cloud CLI policy) → safehouse (file policy) → agent's sandbox
-cloudseal -p terraform -- safehouse claude --dangerously-skip-permissions
+# blastshield (cloud CLI policy) → safehouse (file policy) → agent's sandbox
+blastshield -p terraform -- safehouse claude --dangerously-skip-permissions
 ```
 
 ### Guard Installation
 
 ```bash
 # Install to default location
-cloudseal-guard install
+blastshield-guard install
 
 # Install to custom location
-cloudseal-guard install ~/bin/guard
+blastshield-guard install ~/bin/guard
 
 # List guarded CLIs
-cloudseal-guard list
+blastshield-guard list
 
 # Check if a command would be blocked
-cloudseal-guard check terraform destroy    # exit 1 = blocked
-cloudseal-guard check terraform plan       # exit 0 = allowed
+blastshield-guard check terraform destroy    # exit 1 = blocked
+blastshield-guard check terraform plan       # exit 0 = allowed
 
 # Uninstall
-cloudseal-guard uninstall
+blastshield-guard uninstall
 ```
 
 ### Diagnostics
 
 ```bash
 # Show detected CLIs and auto-detected profiles
-cloudseal --status
+blastshield --status
 
 # Show recent sandbox violations from system log
-cloudseal --violations
+blastshield --violations
 ```
 
 ## Protected Commands
@@ -187,7 +187,7 @@ cloudseal --violations
                    │
     ┌──────────────┼──────────────────┐
     │              ▼                   │
-    │  Layer 2: cloudseal-guard        │
+    │  Layer 2: blastshield-guard        │
     │  (command-argument filter)       │
     │  • Intercepts destructive        │
     │    subcommands via PATH wrappers │
@@ -197,7 +197,7 @@ cloudseal --violations
                    │
     ┌──────────────┼──────────────────┐
     │              ▼                   │
-    │  Layer 1: cloudseal             │
+    │  Layer 1: blastshield             │
     │  (sandbox-exec profiles)        │
     │  • Kernel-enforced file policy   │
     │  • Blocks credential reads       │
@@ -242,10 +242,10 @@ Profiles are [SBPL](https://reverse.put.as/wp-content/uploads/2011/09/Apple-Sand
 
 ### Custom Profiles
 
-Create profiles in `~/.config/cloudseal/profiles/`:
+Create profiles in `~/.config/blastshield/profiles/`:
 
 ```scheme
-;; ~/.config/cloudseal/profiles/custom.sb
+;; ~/.config/blastshield/profiles/custom.sb
 ;; Deny access to internal API keys directory
 (deny file-read* (subpath "/Users/you/secrets"))
 (deny file-write* (subpath "/Users/you/secrets"))
@@ -254,12 +254,12 @@ Create profiles in `~/.config/cloudseal/profiles/`:
 Load with `-p`:
 
 ```bash
-cloudseal -p custom claude
+blastshield -p custom claude
 ```
 
 ### Auto-Detection
 
-CloudSeal scans your project directory for indicator files:
+BlastShield scans your project directory for indicator files:
 
 | Profile | Triggers |
 |---------|----------|
@@ -286,9 +286,9 @@ CloudSeal scans your project directory for indicator files:
 | [sandvault](https://github.com/webcoyote/sandvault) | Separate macOS user account + sandbox-exec | ❌ File/secrets only |
 | [agent-safehouse](https://github.com/eugene1g/agent-safehouse) | Composable profiles, Homebrew, website | ❌ File/secrets only |
 | [agent-seatbelt](https://github.com/CJHwong/agent-seatbelt) | Two-file minimal wrapper | ❌ File/secrets only |
-| **CloudSeal** | **sandbox-exec + command-argument guard** | **✅ Cloud CLI focus** |
+| **BlastShield** | **sandbox-exec + command-argument guard** | **✅ Cloud CLI focus** |
 
-CloudSeal composes with all of the above. Use sandvault for user isolation, safehouse for file policy, and CloudSeal for cloud CLI protection.
+BlastShield composes with all of the above. Use sandvault for user isolation, safehouse for file policy, and BlastShield for cloud CLI protection.
 
 ## License
 

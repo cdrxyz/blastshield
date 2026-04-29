@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# cloudseal — Sandbox AI coding agents with cloud CLI destructive command protection
+# blastshield — Sandbox AI coding agents with cloud CLI destructive command protection
 # Uses macOS sandbox-exec (Seatbelt) to enforce kernel-level restrictions
 #
 # Usage:
-#   cloudseal claude --dangerously-skip-permissions
-#   cloudseal codex
-#   cloudseal --profile terraform shell
-#   cloudseal --profile gcp -- claude
+#   blastshield claude --dangerously-skip-permissions
+#   blastshield codex
+#   blastshield --profile terraform shell
+#   blastshield --profile gcp -- claude
 
 set -euo pipefail
 
@@ -35,9 +35,9 @@ CLOUD_PROFILES=("terraform" "gcloud" "aws" "azure" "kubectl" "gh")
 
 # ─── Helpers ──────────────────────────────────────────────────────────────
 
-info()  { echo -e "${CYAN}[cloudseal]${NC} $*"; }
-warn()  { echo -e "${YELLOW}[cloudseal]${NC} $*"; }
-error() { echo -e "${RED}[cloudseal]${NC} $*" >&2; }
+info()  { echo -e "${CYAN}[blastshield]${NC} $*"; }
+warn()  { echo -e "${YELLOW}[blastshield]${NC} $*"; }
+error() { echo -e "${RED}[blastshield]${NC} $*" >&2; }
 die()   { error "$@"; exit 1; }
 
 # ─── Profile Assembly ────────────────────────────────────────────────────
@@ -60,8 +60,8 @@ resolve_profile() {
     fi
 
     # Check XDG config
-    if [[ -f "${HOME}/.config/cloudseal/profiles/${name}.sb" ]]; then
-        echo "${HOME}/.config/cloudseal/profiles/${name}.sb"
+    if [[ -f "${HOME}/.config/blastshield/profiles/${name}.sb" ]]; then
+        echo "${HOME}/.config/blastshield/profiles/${name}.sb"
         return 0
     fi
 
@@ -125,7 +125,7 @@ assemble_profile() {
 
     {
         # Header
-        echo ";; cloudseal assembled profile — auto-generated, do not edit"
+        echo ";; blastshield assembled profile — auto-generated, do not edit"
         echo ";; Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
         echo ";; Profiles: ${profile_names[*]}"
         echo ""
@@ -203,7 +203,7 @@ show_status() {
     local cloud_profiles
     cloud_profiles=$(detect_cloud_profiles)
 
-    echo -e "${CYAN}cloudseal v${VERSION}${NC}"
+    echo -e "${CYAN}blastshield v${VERSION}${NC}"
     echo ""
     echo "Available cloud CLIs:"
     for cli in $cloud_clis; do
@@ -263,15 +263,15 @@ main() {
                 shift
                 ;;
             --version)
-                echo "cloudseal v${VERSION}"
+                echo "blastshield v${VERSION}"
                 exit 0
                 ;;
             -h|--help)
                 cat <<'HELP'
-cloudseal — Sandbox AI coding agents with cloud CLI destructive command protection
+blastshield — Sandbox AI coding agents with cloud CLI destructive command protection
 
 USAGE:
-    cloudseal [OPTIONS] [--] COMMAND [ARGS...]
+    blastshield [OPTIONS] [--] COMMAND [ARGS...]
 
 OPTIONS:
     -p, --profile NAME    Load additional profile (repeatable)
@@ -286,19 +286,19 @@ OPTIONS:
 
 EXAMPLES:
     # Run Claude Code with all auto-detected protections
-    cloudseal claude --dangerously-skip-permissions
+    blastshield claude --dangerously-skip-permissions
 
     # Run Codex with explicit terraform profile
-    cloudseal -p terraform codex
+    blastshield -p terraform codex
 
     # Run a shell with GCP and AWS profiles
-    cloudseal -p gcloud -p aws bash
+    blastshield -p gcloud -p aws bash
 
     # Check what profiles would be loaded for current directory
-    cloudseal --status
+    blastshield --status
 
     # View recent sandbox violations
-    cloudseal --violations
+    blastshield --violations
 
 PROFILES:
     Profiles are loaded in order. Later profiles can narrow earlier ones.
@@ -306,10 +306,10 @@ PROFILES:
     Cloud profiles (auto-detected or explicit): terraform, gcloud, aws, azure, kubectl, gh
 
     Compose with existing tools:
-    cloudseal -p terraform -- safehouse claude --dangerously-skip-permissions
+    blastshield -p terraform -- safehouse claude --dangerously-skip-permissions
 
 LAYERING:
-    cloudseal (OS-level, cloud CLI policy)
+    blastshield (OS-level, cloud CLI policy)
       └── safehouse/seatbelt (OS-level, file policy)
           └── agent's built-in sandbox (tool-level)
               └── your agent process
@@ -359,7 +359,7 @@ HELP
 
     # Create temporary assembled profile
     local tmp_profile
-    tmp_profile=$(mktemp "${TMPDIR:-/tmp}/cloudseal.XXXXXX.sb")
+    tmp_profile=$(mktemp "${TMPDIR:-/tmp}/blastshield.XXXXXX.sb")
     trap 'rm -f "$tmp_profile"' EXIT
 
     assemble_profile "$tmp_profile" "${profiles[@]}"

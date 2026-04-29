@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# cloudseal-guard — Command-level guard for destructive cloud CLI subcommands
+# blastshield-guard — Command-level guard for destructive cloud CLI subcommands
 #
 # sandbox-exec operates at the file/process level and cannot filter by
 # command arguments. This script provides command-argument-level filtering
 # as a complement to sandbox-exec profiles.
 #
 # Usage:
-#   1. Add to PATH before real CLIs: export PATH="$HOME/.cloudseal/guard:$PATH"
-#   2. Symlinks auto-generated: cloudseal-guard install
+#   1. Add to PATH before real CLIs: export PATH="$HOME/.blastshield/guard:$PATH"
+#   2. Symlinks auto-generated: blastshield-guard install
 #   3. Each guarded CLI gets a wrapper that blocks destructive subcommands
 #
 # The wrapper prompts for Touch ID / sudo password before allowing
@@ -49,9 +49,9 @@ DESTRUCTIVE_COMMANDS[gh]="delete"
 
 # ─── Helper Functions ─────────────────────────────────────────────────────
 
-info()  { echo -e "${CYAN}[cloudseal-guard]${NC} $*"; }
-warn()  { echo -e "${YELLOW}[cloudseal-guard]${NC} $*"; }
-error() { echo -e "${RED}[cloudseal-guard]${NC} $*" >&2; }
+info()  { echo -e "${CYAN}[blastshield-guard]${NC} $*"; }
+warn()  { echo -e "${YELLOW}[blastshield-guard]${NC} $*"; }
+error() { echo -e "${RED}[blastshield-guard]${NC} $*" >&2; }
 
 # Check if a command matches destructive patterns
 is_destructive() {
@@ -132,7 +132,7 @@ install_guards() {
     local target_dir="${1:-$GUARD_DIR}"
     mkdir -p "$target_dir"
 
-    echo "Installing cloudseal-guard wrappers in $target_dir"
+    echo "Installing blastshield-guard wrappers in $target_dir"
     echo ""
 
     for cli in "${!DESTRUCTIVE_COMMANDS[@]}"; do
@@ -148,9 +148,9 @@ install_guards() {
         # Create wrapper script
         cat > "$wrapper" << WRAPPER
 #!/usr/bin/env bash
-# cloudseal-guard wrapper for $cli
+# blastshield-guard wrapper for $cli
 # Auto-generated — do not edit
-source "$GUARD_DIR/cloudseal-guard" 2>/dev/null || source "$(command -v cloudseal-guard 2>/dev/null || echo "$GUARD_DIR/cloudseal-guard")" 2>/dev/null
+source "$GUARD_DIR/blastshield-guard" 2>/dev/null || source "$(command -v blastshield-guard 2>/dev/null || echo "$GUARD_DIR/blastshield-guard")" 2>/dev/null
 
 cli="$cli"
 args=("\$@")
@@ -174,7 +174,7 @@ WRAPPER
 
 uninstall_guards() {
     local target_dir="${1:-$GUARD_DIR}"
-    echo "Removing cloudseal-guard wrappers from $target_dir"
+    echo "Removing blastshield-guard wrappers from $target_dir"
 
     for cli in "${!DESTRUCTIVE_COMMANDS[@]}"; do
         local wrapper="$target_dir/$cli"
@@ -209,7 +209,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
             # Check if a specific command would be blocked
             shift
             local cli="${1:-}"
-            [[ -z "$cli" ]] && { echo "Usage: cloudseal-guard check <cli> [args...]"; exit 1; }
+            [[ -z "$cli" ]] && { echo "Usage: blastshield-guard check <cli> [args...]"; exit 1; }
             shift
             if is_destructive "$cli" "$@"; then
                 echo "BLOCKED: $cli $* matches destructive pattern"
@@ -221,14 +221,14 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
             ;;
         -h|--help|help)
             cat <<'HELP'
-cloudseal-guard — Command-level guard for destructive cloud CLI subcommands
+blastshield-guard — Command-level guard for destructive cloud CLI subcommands
 
 USAGE:
-    cloudseal-guard install [DIR]    Install wrapper scripts to DIR (default: guard dir)
-    cloudseal-guard uninstall [DIR]  Remove wrapper scripts
-    cloudseal-guard list            List guarded CLIs and patterns
-    cloudseal-guard check CLI ARGS  Check if a command would be blocked
-    cloudseal-guard help            Show this help
+    blastshield-guard install [DIR]    Install wrapper scripts to DIR (default: guard dir)
+    blastshield-guard uninstall [DIR]  Remove wrapper scripts
+    blastshield-guard list            List guarded CLIs and patterns
+    blastshield-guard check CLI ARGS  Check if a command would be blocked
+    blastshield-guard help            Show this help
 
 GUARDED CLIS:
     terraform:  destroy
@@ -246,14 +246,14 @@ HOW IT WORKS:
     5. Non-destructive commands pass through immediately
 
 PAIR WITH SANDBOX-EXEC:
-    cloudseal-guard handles command-argument filtering
-    sandbox-exec (cloudseal) handles filesystem/process/network filtering
+    blastshield-guard handles command-argument filtering
+    sandbox-exec (blastshield) handles filesystem/process/network filtering
     Use both together for defense in depth.
 HELP
             ;;
         *)
             echo "Unknown command: ${1:-}"
-            echo "Try: cloudseal-guard help"
+            echo "Try: blastshield-guard help"
             exit 1
             ;;
     esac

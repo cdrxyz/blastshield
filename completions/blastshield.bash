@@ -1,5 +1,5 @@
-# bash completion for cloudseal
-_cloudseal() {
+# bash completion for blastshield
+_blastshield() {
     local cur prev opts profiles
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
@@ -23,4 +23,4 @@ _cloudseal() {
     # Suggest common AI agents
     COMPREPLY=($(compgen -W "claude codex opencode gemini bash zsh" -- "$cur"))
 }
-complete -F _cloudseal cloudseal
+complete -F _blastshield blastshield
