@@ -352,6 +352,31 @@ MINIMAL
     fi
     rm -rf "$codex_home"
 
+    # Test: Claude can create runtime state while settings/plugins/global state stay protected
+    claude_home=$(mktemp -d "${TMPDIR:-/tmp}/blastshield-claude-home.XXXXXX")
+    mkdir -p "$claude_home/.claude"
+    if claude_state_out=$(HOME="$claude_home" "$BLASTSHIELD" --no-detect /bin/sh -c 'mkdir -p "$HOME/.claude/projects/test" "$HOME/.claude/sessions" "$HOME/.claude/session-env" "$HOME/.claude/cache" "$HOME/.claude/debug" "$HOME/.claude/plans" && printf ok > "$HOME/.claude/projects/test/session.jsonl" && printf ok > "$HOME/.claude/history.jsonl" && printf ok > "$HOME/.claude/session-env/test"' 2>&1); then
+        pass "integration: blastshield allows Claude runtime state writes"
+    else
+        fail "integration: blastshield Claude runtime state write failed" "$claude_state_out"
+    fi
+    if HOME="$claude_home" "$BLASTSHIELD" --no-detect /bin/sh -c 'printf bad > "$HOME/.claude/settings.json"' >/dev/null 2>&1; then
+        fail "integration: blastshield blocks Claude settings writes" "Expected settings write to be denied"
+    else
+        pass "integration: blastshield blocks Claude settings writes"
+    fi
+    if HOME="$claude_home" "$BLASTSHIELD" --no-detect /bin/sh -c 'mkdir -p "$HOME/.claude/plugins/test"' >/dev/null 2>&1; then
+        fail "integration: blastshield blocks Claude plugin writes" "Expected plugin write to be denied"
+    else
+        pass "integration: blastshield blocks Claude plugin writes"
+    fi
+    if HOME="$claude_home" "$BLASTSHIELD" --no-detect /bin/sh -c 'printf bad > "$HOME/.claude.json"' >/dev/null 2>&1; then
+        fail "integration: blastshield blocks Claude global state writes" "Expected global state write to be denied"
+    else
+        pass "integration: blastshield blocks Claude global state writes"
+    fi
+    rm -rf "$claude_home"
+
     # Test: auto-detection path handles an initially empty extra_profiles array
     if autodetect_out=$(cd "$REPO_DIR" && "$BLASTSHIELD" /usr/bin/true 2>&1); then
         pass "integration: blastshield wrapper runs with auto-detected profiles"

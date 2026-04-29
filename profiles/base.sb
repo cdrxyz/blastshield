@@ -31,6 +31,9 @@
 ;; Codex runtime state. Keep auth/config/rules read-only below.
 (allow file-write* (subpath "_HOME/.codex"))
 
+;; Claude runtime state. Keep settings/plugins/native integration read-only below.
+(allow file-write* (subpath "_HOME/.claude"))
+
 ;; ═══ Filesystem: Protected Write Paths ═══
 ;; Block writes to dangerous locations even within project dir
 
@@ -51,6 +54,13 @@
 (deny file-write* (subpath "_HOME/.codex/rules"))
 (deny file-write* (subpath "_HOME/.codex/skills"))
 (deny file-write* (subpath "_HOME/.codex/memories"))
+
+;; No writing to Claude settings, plugins, native integration, or global state
+(deny file-write* (literal "_HOME/.claude/settings.json"))
+(deny file-write* (subpath "_HOME/.claude/plugins"))
+(deny file-write* (subpath "_HOME/.claude/chrome"))
+(deny file-write* (subpath "_HOME/.claude/backups"))
+(deny file-write* (literal "_HOME/.claude.json"))
 
 ;; ═══ Process Execution ═══
 
