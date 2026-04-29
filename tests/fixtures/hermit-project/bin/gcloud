@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+printf 'gcloud %s\n' "$*" >> "$HERMIT_MARKER"
