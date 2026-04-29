@@ -366,6 +366,41 @@ HERMIT_TERRAFORM
     fi
     rm -rf "$hermit_project"
 
+    # Test: committed Hermit-style fixture works from a nested repo subdirectory
+    hermit_fixture="$REPO_DIR/tests/fixtures/hermit-project"
+    hermit_fixture_workdir="$hermit_fixture/infra/live"
+    hermit_fixture_marker=$(mktemp "${TMPDIR:-/tmp}/blastshield-hermit-marker.XXXXXX")
+    rm -f "$hermit_fixture_marker"
+
+    hermit_fixture_apply_out=""
+    if hermit_fixture_apply_out=$(cd "$hermit_fixture_workdir" && HERMIT_MARKER="$hermit_fixture_marker" PATH="$hermit_fixture/bin:$PATH" "$BLASTSHIELD" --no-detect terraform apply 2>&1); then
+        fail "integration: blastshield blocks fixture Hermit terraform apply" "Expected mutating command to be blocked"
+    elif [[ -e "$hermit_fixture_marker" ]]; then
+        fail "integration: blastshield blocks fixture Hermit terraform apply" "Fixture terraform was executed: $(cat "$hermit_fixture_marker")"
+    else
+        pass "integration: blastshield blocks fixture Hermit terraform apply"
+    fi
+
+    hermit_fixture_plan_out=""
+    if hermit_fixture_plan_out=$(cd "$hermit_fixture_workdir" && HERMIT_MARKER="$hermit_fixture_marker" PATH="$hermit_fixture/bin:$PATH" "$BLASTSHIELD" --no-detect terraform plan 2>&1) &&
+        [[ -f "$hermit_fixture_marker" ]] &&
+        grep -q '^terraform plan$' "$hermit_fixture_marker"; then
+        pass "integration: blastshield allows fixture Hermit terraform plan"
+    else
+        fail "integration: blastshield allows fixture Hermit terraform plan" "$hermit_fixture_plan_out"
+    fi
+
+    rm -f "$hermit_fixture_marker"
+    hermit_fixture_gcloud_out=""
+    if hermit_fixture_gcloud_out=$(cd "$hermit_fixture_workdir" && HERMIT_MARKER="$hermit_fixture_marker" PATH="$hermit_fixture/bin:$PATH" "$BLASTSHIELD" --no-detect gcloud compute instances delete test-vm 2>&1); then
+        fail "integration: blastshield blocks fixture Hermit gcloud delete" "Expected mutating command to be blocked"
+    elif [[ -e "$hermit_fixture_marker" ]]; then
+        fail "integration: blastshield blocks fixture Hermit gcloud delete" "Fixture gcloud was executed: $(cat "$hermit_fixture_marker")"
+    else
+        pass "integration: blastshield blocks fixture Hermit gcloud delete"
+    fi
+    rm -f "$hermit_fixture_marker"
+
     # Test: assembled profile substitutes _PROJECT_DIR and allows project writes
     project_probe="$REPO_DIR/.blastshield-project-write-test"
     rm -f "$project_probe"
