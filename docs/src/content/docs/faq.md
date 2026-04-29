@@ -18,6 +18,7 @@ Built-in agent sandboxes (Claude's `/sandbox`, Codex's approval policies) only g
 Any command-line tool. BlastShield doesn't need to know about the agent — it wraps any process in a sandbox. Commonly used with:
 - Claude Code (`blastshield claude`)
 - OpenAI Codex (`blastshield codex`)
+- OpenCode (`blastshield opencode`)
 - Cursor (`blastshield cursor`)
 - Google Gemini (`blastshield gemini`)
 - Any other CLI tool (`blastshield bash`)
@@ -141,6 +142,6 @@ This requires Full Disk Access for the terminal app. Grant it in **System Settin
 
 The sandbox may be too restrictive. Options:
 
-1. **Disable auto-detection** and specify only the profiles you need: `blastshield --no-detect -p terraform claude`
+1. **Disable auto-detection** and specify only the profiles you need: `blastshield --no-detect -p terraform claude` (or `codex`, `opencode`)
 2. **Create a custom profile** with additional allow rules: `~/.config/blastshield/profiles/custom.sb`
 3. **Check violations** to understand what's being blocked: `blastshield --violations`

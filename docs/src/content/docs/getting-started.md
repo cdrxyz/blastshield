@@ -27,8 +27,11 @@ export PATH="$PWD:$PATH"
 # Run Claude Code with all auto-detected cloud protections
 blastshield claude --dangerously-skip-permissions
 
-# Run Codex with explicit profiles
-blastshield -p terraform -p aws codex
+# Run Codex with full auto-approve
+blastshield codex --full-auto
+
+# Run OpenCode with auto-detected profiles
+blastshield opencode
 
 # Run any command
 blastshield -p kubectl bash
@@ -82,6 +85,8 @@ blastshield -p gcloud -p aws opencode
 
 # Disable auto-detection
 blastshield --no-detect claude
+blastshield --no-detect codex
+blastshield --no-detect opencode
 ```
 
 ### Clean Environment
@@ -90,6 +95,8 @@ Strip API keys and secrets from environment variables before launching the agent
 
 ```bash
 blastshield -c claude --dangerously-skip-permissions
+blastshield -c codex --full-auto
+blastshield -c opencode
 ```
 
 ### Diagnostics
