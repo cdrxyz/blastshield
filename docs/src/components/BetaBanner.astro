@@ -1,0 +1,37 @@
+---
+const { banner } = Astro.locals.starlightRoute.entry.data;
+const betaWarning =
+	'BlastShield is in beta and may contain bugs. Validate it in a non-production environment before relying on it for safety-critical workflows.';
+---
+
+<div class="sl-banner sl-beta-banner" data-pagefind-ignore>
+	<p>{betaWarning}</p>
+</div>
+{banner && <div class="sl-banner" data-pagefind-ignore set:html={banner.content} />}
+
+<style>
+	@layer starlight.core {
+		.sl-banner {
+			--__sl-banner-text: var(--sl-color-banner-text, var(--sl-color-text-invert));
+			padding: var(--sl-nav-pad-y) var(--sl-nav-pad-x);
+			background-color: var(--sl-color-banner-bg, var(--sl-color-bg-accent));
+			color: var(--__sl-banner-text);
+			line-height: var(--sl-line-height-headings);
+			text-align: center;
+			text-wrap: balance;
+			box-shadow: var(--sl-shadow-sm);
+		}
+
+		.sl-banner :global(a) {
+			color: var(--__sl-banner-text);
+		}
+
+		.sl-beta-banner {
+			--sl-color-banner-bg: #8a2c0d;
+		}
+
+		.sl-beta-banner p {
+			margin: 0;
+		}
+	}
+</style>
