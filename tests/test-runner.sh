@@ -165,10 +165,10 @@ else
 fi
 
 # Test: guard help works
-if "$GUARD" help 2>&1 | grep -q "destructive"; then
+if "$GUARD" help 2>&1 | grep -qi "mutating\|read-only"; then
     pass "blastshield-guard help: outputs help text"
 else
-    fail "blastshield-guard help: expected help with 'destructive'"
+    fail "blastshield-guard help: expected help with 'mutating' or 'read-only'"
 fi
 
 # Test: guard list works
@@ -200,11 +200,11 @@ else
     pass "blastshield-guard check gcloud delete: correctly blocked"
 fi
 
-# Test: guard check — aws describe allowed
-if "$GUARD" check aws describe 2>&1; then
-    pass "blastshield-guard check aws describe: correctly allowed"
+# Test: guard check — aws describe- allowed (read-only)
+if "$GUARD" check aws ec2 describe-instances 2>&1; then
+    pass "blastshield-guard check aws describe-instances: correctly allowed (read-only)"
 else
-    fail "blastshield-guard check aws describe: should be allowed"
+    fail "blastshield-guard check aws describe-instances: should be allowed"
 fi
 
 # Test: guard check — kubectl delete blocked
@@ -219,6 +219,83 @@ if "$GUARD" check az delete 2>&1; then
     fail "blastshield-guard check az delete: should be blocked"
 else
     pass "blastshield-guard check az delete: correctly blocked"
+fi
+
+# Test: guard check — terraform apply now blocked (read-only posture)
+if "$GUARD" check terraform apply 2>&1; then
+    fail "blastshield-guard check terraform apply: should be blocked (read-only posture)"
+else
+    pass "blastshield-guard check terraform apply: correctly blocked (read-only posture)"
+fi
+
+# Test: guard check — gcloud create blocked
+if "$GUARD" check gcloud create 2>&1; then
+    fail "blastshield-guard check gcloud create: should be blocked"
+else
+    pass "blastshield-guard check gcloud create: correctly blocked"
+fi
+
+# Test: guard check — aws create blocked
+if "$GUARD" check aws create 2>&1; then
+    fail "blastshield-guard check aws create: should be blocked"
+else
+    pass "blastshield-guard check aws create: correctly blocked"
+fi
+
+# Test: guard check — kubectl apply blocked
+if "$GUARD" check kubectl apply 2>&1; then
+    fail "blastshield-guard check kubectl apply: should be blocked"
+else
+    pass "blastshield-guard check kubectl apply: correctly blocked"
+fi
+
+# Test: guard check — gcloud list allowed (read-only)
+if "$GUARD" check gcloud list 2>&1; then
+    pass "blastshield-guard check gcloud list: correctly allowed (read-only)"
+else
+    fail "blastshield-guard check gcloud list: should be allowed"
+fi
+
+# Test: guard check — kubectl get allowed (read-only)
+if "$GUARD" check kubectl get 2>&1; then
+    pass "blastshield-guard check kubectl get: correctly allowed (read-only)"
+else
+    fail "blastshield-guard check kubectl get: should be allowed"
+fi
+
+# Test: guard check — gcloud compute instances list allowed (read-only, 3-word subcmd)
+if "$GUARD" check gcloud compute instances list 2>&1; then
+    pass "blastshield-guard check gcloud compute instances list: correctly allowed (read-only)"
+else
+    fail "blastshield-guard check gcloud compute instances list: should be allowed"
+fi
+
+# Test: guard check — gcloud compute instances delete blocked (3-word subcmd)
+if "$GUARD" check gcloud compute instances delete 2>&1; then
+    fail "blastshield-guard check gcloud compute instances delete: should be blocked"
+else
+    pass "blastshield-guard check gcloud compute instances delete: correctly blocked"
+fi
+
+# Test: guard check — gh pr merge blocked (mutating)
+if "$GUARD" check gh pr merge 2>&1; then
+    fail "blastshield-guard check gh pr merge: should be blocked"
+else
+    pass "blastshield-guard check gh pr merge: correctly blocked"
+fi
+
+# Test: guard check — aws ec2 run-instances blocked (mutating)
+if "$GUARD" check aws ec2 run-instances 2>&1; then
+    fail "blastshield-guard check aws ec2 run-instances: should be blocked"
+else
+    pass "blastshield-guard check aws ec2 run-instances: correctly blocked"
+fi
+
+# Test: guard check — aws s3 ls allowed (read-only)
+if "$GUARD" check aws s3 ls 2>&1; then
+    pass "blastshield-guard check aws s3 ls: correctly allowed (read-only)"
+else
+    fail "blastshield-guard check aws s3 ls: should be allowed"
 fi
 
 # ─── Integration Tests ───────────────────────────────────────────────────

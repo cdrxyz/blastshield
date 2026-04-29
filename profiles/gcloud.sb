@@ -1,32 +1,42 @@
-;; cloudseal gcloud profile — prevent destructive GCP operations
+;; blastshield gcloud profile — read-only GCP access
 ;;
-;; BLOCKED operations (via credential/file protection):
-;;   gcloud compute instances delete
-;;   gcloud compute disks delete
-;;   gcloud sql instances delete
-;;   gcloud storage rm (buckets)
-;;   gcloud projects delete
-;;   gcloud container clusters delete
-;;   gcloud pubsub topics delete / subscriptions delete
-;;   gcloud bigtable instances delete
-;;   gcloud firestore export/import (data exfiltration vector)
-;;   gcloud iam roles delete / service-accounts delete
-;;   gcloud deployment-manager deployments delete
+;; PHILOSOPHY: Only read operations are permitted. Any command that mutates
+;; GCP resources (deploy, create, delete, update) must be run manually by
+;; the user. The AI agent can inspect and plan, never execute.
 ;;
-;; ALLOWED operations:
-;;   gcloud compute instances list/describe/start/stop
-;;   gcloud storage cp (upload)
-;;   gcloud builds submit
-;;   gcloud functions deploy
-;;   gcloud run deploy
-;;   gcloud container clusters get-credentials
-;;   gcloud iam roles create/list/describe
+;; BLOCKED commands (via credential protection + guard):
+;;   gcloud compute instances delete / create / start / stop
+;;   gcloud compute disks delete / create
+;;   gcloud sql instances delete / create / patch
+;;   gcloud storage rm / mb (buckets)
+;;   gcloud projects delete / create
+;;   gcloud container clusters delete / create / update
+;;   gcloud pubsub topics delete / create
+;;   gcloud bigtable instances delete / create
+;;   gcloud firestore export/import
+;;   gcloud iam roles delete / create
+;;   gcloud deployment-manager deployments delete / create / update
+;;   gcloud functions deploy / delete
+;;   gcloud run deploy / delete / update
+;;   gcloud builds submit (deploys code)
+;;   gcloud app deploy
+;;   gcloud services enable/disable
+;;   gcloud alpha/beta ANY mutating subcommand
+;;
+;; ALLOWED commands:
+;;   gcloud compute instances list/describe
+;;   gcloud storage ls/cat (read-only)
 ;;   gcloud projects list/describe
+;;   gcloud container clusters list/describe/get-credentials
+;;   gcloud iam roles list/describe
+;;   gcloud config list/get
+;;   gcloud auth status
+;;   gcloud version
 ;;
 ;; NOTE: sandbox-exec cannot filter by command sub-arguments. This profile
-;; protects credential files that gcloud needs for authentication. If gcloud
-;; can't read its credentials, it can't execute any authenticated operation.
-;; For finer-grained command filtering, pair with the helper script.
+;; protects credential files so gcloud CANNOT authenticate for any operation.
+;; For read-only access, use blastshield-guard which allows list/describe
+;; but blocks all mutating subcommands.
 ;;
 ;; Parameters: _HOME, _PROJECT_DIR
 
@@ -34,7 +44,7 @@
 
 ;; ═══ GCP Credential Protection ═══
 
-;; Already covered by secrets profile, but explicit here for standalone use
+;; Deny reading all gcloud credentials (blocks ALL authenticated operations)
 (deny file-read* (subpath "_HOME/.config/gcloud/credentials"))
 (deny file-read* (subpath "_HOME/.config/gcloud/access_tokens"))
 (deny file-read* (subpath "_HOME/.config/gcloud/legacy_credentials"))
@@ -43,12 +53,13 @@
 
 ;; ═══ Application Default Credentials ═══
 
+;; Deny reading ADC (used by all GCP SDKs)
 (deny file-read* (literal "_HOME/.config/gcloud/application_default_credentials.json"))
 (deny file-write* (literal "_HOME/.config/gcloud/application_default_credentials.json"))
 
 ;; ═══ Service Account Keys ═══
 
-;; Deny reading any service account key files (common in projects)
+;; Deny reading any service account key files
 (deny file-read* (regex #".*service-account.*\.json$"))
 (deny file-read* (regex #".*sa-key.*\.json$"))
 (deny file-read* (regex #".*gcp-key.*\.json$"))
@@ -69,3 +80,8 @@
 ;; Prevent writing to cloud SQL proxy sockets (database access vector)
 (deny file-write* (subpath "_TMPDIR/cloudsql"))
 (deny file-write* (subpath "/tmp/cloudsql"))
+
+;; ═══ Pulumi State ═══
+
+;; Deny writing to Pulumi state (GCP alternative to Terraform)
+(deny file-write* (regex #"_PROJECT_DIR/.*\.pulumi/.*state.*"))

@@ -1,25 +1,35 @@
-;; cloudseal azure profile — prevent destructive Azure operations
+;; blastshield azure profile — read-only Azure access
 ;;
-;; BLOCKED operations (via credential/file protection):
-;;   az group delete              — delete entire resource group + all resources
-;;   az vm delete                 — delete virtual machine
-;;   az sql db delete              — delete SQL database
-;;   az storage account delete     — delete storage account
-;;   az aks delete                 — delete AKS cluster
-;;   az keyvault delete            — delete key vault
-;;   az webapp delete              — delete App Service
-;;   az functionapp delete         — delete Function App
-;;   az network vnet delete        — delete virtual network
+;; PHILOSOPHY: Only read operations are permitted. Any command that mutates
+;; Azure resources must be run manually by the user. The AI agent can inspect
+;; and plan, never execute.
 ;;
-;; ALLOWED operations:
-;;   az group list/show/create
-;;   az vm list/show/start/deallocate
-;;   az sql db list/show/create
-;;   az storage blob upload/list
-;;   az aks get-credentials
-;;   az keyvault secret list/show/set
-;;   az webapp list/show/deploy
-;;   az functionapp list/show/deploy
+;; BLOCKED commands (via credential protection + guard):
+;;   az group delete / create / update
+;;   az vm delete / create / update / deallocate
+;;   az sql db delete / create / update
+;;   az storage account delete / create / update
+;;   az aks delete / create / update
+;;   az keyvault delete / create / set-secret / delete-secret
+;;   az webapp delete / create / deploy
+;;   az functionapp delete / create / deploy
+;;   az network vnet delete / create / update
+;;   az deployment group delete / create
+;;   az acr delete / create / build / import
+;;   az appconfig delete / set / kv set / kv delete
+;;   az cosmosdb delete / create / sql database create/delete
+;;
+;; ALLOWED commands:
+;;   az group list / show
+;;   az vm list / show
+;;   az sql db list / show
+;;   az storage blob list / download
+;;   az aks list / show / get-credentials
+;;   az keyvault secret list / show
+;;   az webapp list / show
+;;   az network list / show
+;;   az account list / show
+;;   az version
 ;;
 ;; Parameters: _HOME, _PROJECT_DIR
 
@@ -27,13 +37,13 @@
 
 ;; ═══ Azure Credential Protection ═══
 
-;; Deny all access to Azure credential directory
+;; Deny ALL access to Azure credential directory (blocks all auth)
 (deny file-read* (subpath "_HOME/.azure"))
 (deny file-write* (subpath "_HOME/.azure"))
 
 ;; ═══ Azure CLI Token Cache ═══
 
-;; Deny access to MSAL token cache
+;; Deny access to MSAL token cache (redundant but explicit)
 (deny file-read* (literal "_HOME/.azure/msal_token_cache.json"))
 (deny file-write* (literal "_HOME/.azure/msal_token_cache.json"))
 
@@ -57,6 +67,11 @@
 
 ;; ═══ Bicep Build Output ═══
 
-;; Allow reading bicep files but deny writing compiled ARM templates
-;; (agent should submit PRs, not deploy directly)
+;; Deny writing compiled bicep output (agent should submit PRs, not deploy)
 (deny file-write* (regex #"_PROJECT_DIR/.*\.bicepparam$"))
+
+;; ═══ Azure DevOps Tokens ═══
+
+;; Deny reading Azure DevOps PATs
+(deny file-read* (regex #".*azuredevops.*token.*"))
+(deny file-read* (regex #".*ado.*pat.*"))

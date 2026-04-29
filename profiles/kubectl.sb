@@ -1,28 +1,37 @@
-;; cloudseal kubectl profile — prevent destructive Kubernetes operations
+;; blastshield kubectl profile — read-only Kubernetes access
 ;;
-;; BLOCKED operations (via credential/file protection):
-;;   kubectl delete                 — delete any resource
-;;   kubectl delete namespace        — delete entire namespace
-;;   kubectl delete pods --all       — delete all pods
-;;   kubectl delete deployment       — delete deployment
-;;   kubectl scale --replicas=0      — scale to zero (effective deletion)
-;;   kubectl patch (destructive)     — modify resource configs
-;;   kubectl taint (disruptive)     — affect scheduling
-;;   kubectl cordon/uncordon/drain   — node manipulation
+;; PHILOSOPHY: Only read operations are permitted. Any command that mutates
+;; cluster state must be run manually by the user. The AI agent can inspect
+;; and debug, never modify.
 ;;
-;; ALLOWED operations:
-;;   kubectl get, describe, list
-;;   kubectl logs, top, events
-;;   kubectl apply (create/update)
-;;   kubectl exec (read-only investigation)
-;;   kubectl port-forward
-;;   kubectl rollout status/history
-;;   kubectl config get-contexts/use-context
+;; BLOCKED commands (via credential protection + guard):
+;;   kubectl apply / create           — create/modify resources
+;;   kubectl delete                   — delete any resource
+;;   kubectl patch                    — modify resource configs
+;;   kubectl scale                    — change replica counts
+;;   kubectl taint                    — affect scheduling
+;;   kubectl cordon / uncordon / drain — node manipulation
+;;   kubectl rollout restart / undo   — restart deployments
+;;   kubectl exec (with write intent) — command execution in pods
+;;   kubectl label / annotate         — modify metadata
+;;   kubectl set                      — modify resource fields
+;;   helm install / upgrade / delete / rollback
+;;   kustomize build | kubectl apply  — deployment pipeline
 ;;
-;; IMPORTANT: kubectl reads credentials from kubeconfig. By denying
-;; access to kubeconfig, we prevent ALL authenticated kubectl operations.
-;; This is a blunt instrument. For safer granular control, use the
-;; helper script which filters by subcommand.
+;; ALLOWED commands:
+;;   kubectl get / describe / list
+;;   kubectl logs / top / events
+;;   kubectl api-resources / api-versions / explain
+;;   kubectl config get-contexts / view
+;;   kubectl rollout status / history (read-only)
+;;   kubectl auth can-i / reconcile
+;;   kubectl version
+;;   helm list / status / history / show (read-only)
+;;   kustomize build (output only, no apply)
+;;
+;; NOTE: By denying access to kubeconfig, we block ALL authenticated
+;; operations. For granular read-only access, use blastshield-guard
+;; which allows get/describe/logs but blocks apply/delete/exec.
 ;;
 ;; Parameters: _HOME, _PROJECT_DIR
 
@@ -30,12 +39,12 @@
 
 ;; ═══ Kubeconfig Protection ═══
 
-;; Deny reading kubeconfig (blocks all authenticated cluster operations)
-;; This is the nuclear option — uncomment if you want full block
+;; Deny reading kubeconfig (blocks ALL authenticated cluster operations)
+;; Uncomment for full lockout — the guard provides finer control
 ;; (deny file-read* (subpath "_HOME/.kube"))
 
-;; Alternatively: allow reading but deny writing to kubeconfig
-;; This lets the agent read cluster info but not add malicious contexts
+;; Allow reading kubeconfig for read-only operations (list, get, describe)
+;; but deny writing (prevents adding malicious contexts/credentials)
 (allow file-read* (subpath "_HOME/.kube"))
 (deny file-write* (subpath "_HOME/.kube"))
 
@@ -52,7 +61,7 @@
 
 ;; ═══ Helm State ═══
 
-;; Deny writing to Helm release state (prevents uninstall/rollback)
+;; Deny writing to Helm release state (blocks install/upgrade/uninstall)
 (deny file-write* (regex #"_PROJECT_DIR/.*Chart\.lock$"))
 
 ;; ═══ Terraform State ═══
@@ -64,3 +73,10 @@
 
 ;; Deny writing to namespace-level manifests (prevents cluster-scoped changes)
 (deny file-write* (regex #"_PROJECT_DIR/.*namespace.*\.ya?ml$"))
+
+;; ═══ Manifest Files ═══
+
+;; Deny writing to deployment/service manifests (prevents apply source mutation)
+;; Agent should submit PRs, not directly modify live manifests
+(deny file-write* (regex #"_PROJECT_DIR/.*deploy.*\.ya?ml$"))
+(deny file-write* (regex #"_PROJECT_DIR/.*service.*\.ya?ml$"))

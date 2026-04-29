@@ -1,22 +1,30 @@
-;; cloudseal terraform profile — prevent destructive Terraform operations
+;; blastshield terraform profile — read-only Terraform access
 ;;
-;; BLOCKED commands:
-;;   terraform destroy         — deletes all managed infrastructure
-;;   terraform apply -destroy  — targeted resource destruction
-;;   terraform workspace delete — removes workspace state
-;;   terraform state rm        — removes resources from state (orphaning them)
-;;   terraform force-unlock     — dangerous lock manipulation
+;; PHILOSOPHY: Only read operations are permitted. Any command that mutates
+;; infrastructure (apply, destroy, import, taint) must be run manually by
+;; the user — the AI agent should prompt the user, not execute directly.
+;;
+;; BLOCKED commands (via credential/state protection + guard):
+;;   terraform apply              — mutates infrastructure
+;;   terraform destroy            — deletes infrastructure
+;;   terraform apply -destroy     — targeted destruction
+;;   terraform import             — modifies state
+;;   terraform taint / untaint    — modifies state
+;;   terraform workspace delete   — removes workspace state
+;;   terraform state rm / mv      — modifies state
+;;   terraform force-unlock       — dangerous lock manipulation
+;;   terraform refresh            — modifies state in-place
 ;;
 ;; ALLOWED commands:
-;;   terraform init, plan, apply (create/update only)
-;;   terraform fmt, validate, lint
-;;   terraform show, output, state list, state show
-;;   terraform import, taint, untaint
-;;   terraform workspace select, list, new
+;;   terraform init, plan, fmt, validate
+;;   terraform show, output, console
+;;   terraform state list, state show (read-only)
+;;   terraform workspace list, select
+;;   terraform providers, version
 ;;
 ;; IMPORTANT: sandbox-exec operates on file/process paths, not command arguments.
-;; This profile protects credential files and state files from destructive writes.
-;; For command-argument-level blocking, use the helper script instead.
+;; This profile protects credential files and state files from ANY writes.
+;; For command-argument-level blocking, pair with blastshield-guard.
 ;;
 ;; Parameters: _HOME, _PROJECT_DIR
 
@@ -24,41 +32,47 @@
 
 ;; ═══ Terraform State Protection ═══
 
-;; Deny writing to .tfstate files (prevents state corruption/destruction)
-;; State files track real infrastructure — destroying them orphans resources
+;; Deny ALL writes to .tfstate files (no apply, destroy, refresh, import)
+;; State files track real infrastructure — any write mutates real resources
 (deny file-write* (regex #"_PROJECT_DIR/.*\.tfstate$"))
 (deny file-write* (regex #"_PROJECT_DIR/.*\.tfstate\.backup$"))
 
 ;; Deny writing to .terraform/ directory internals
-;; This prevents terraform init from replacing providers without review,
-;; but allows reading current provider configs
+;; This blocks terraform init from downloading providers without review
+;; and prevents any provider plugin replacement
 (deny file-write* (subpath "_PROJECT_DIR/.terraform/providers"))
+(deny file-write* (subpath "_PROJECT_DIR/.terraform/modules"))
 
 ;; ═══ Terraform Cloud/Enterprise Credentials ═══
 
-;; Deny reading Terraform Cloud API tokens
+;; Deny reading Terraform Cloud API tokens (blocks ALL remote operations)
 (deny file-read* (literal "_HOME/.terraform.d/credentials.tfrc.json"))
 (deny file-read* (subpath "_HOME/.terraform.d/credentials"))
 (deny file-write* (subpath "_HOME/.terraform.d"))
 
 ;; ═══ Backend Configuration ═══
 
-;; Deny writing to backend config files (prevents redirecting state to attacker bucket)
+;; Deny writing to backend config files (prevents redirecting state)
 (deny file-write* (regex #"_PROJECT_DIR/.*backend\.tf$"))
 (deny file-write* (regex #"_PROJECT_DIR/.*backend\.tfvars$"))
 
 ;; ═══ Lock File Protection ═══
 
-;; Deny deleting .terraform.lock.hcl (ensures provider version integrity)
+;; Deny modifying .terraform.lock.hcl (ensures provider version integrity)
 (deny file-write* (literal "_PROJECT_DIR/.terraform.lock.hcl"))
 
 ;; ═══ Cloud Backend State (remote state) ═══
 
-;; Deny writing to S3 state backends (common Terraform remote state pattern)
-;; This blocks terraform destroy's ability to push destroyed state to remote
+;; Deny writing to any remote state cache (blocks apply/destroy state push)
 (deny file-write* (regex #"_HOME/\.terraform.*state.*"))
 
 ;; ═══ Workspace Safety ═══
 
-;; Deny creating/deleting workspace directories (prevents workspace.delete)
+;; Deny creating/deleting workspace directories (prevents workspace.delete/new)
 (deny file-write* (subpath "_PROJECT_DIR/.terraform/workspace"))
+
+;; ═══ Plan Output Protection ═══
+
+;; Deny writing plan files to prevent apply from using cached plans
+;; (agent should plan only, never apply)
+(deny file-write* (regex #"_PROJECT_DIR/.*\.tfplan$"))

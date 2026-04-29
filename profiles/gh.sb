@@ -1,25 +1,37 @@
-;; cloudseal gh profile — prevent destructive GitHub operations
+;; blastshield gh profile — read-only GitHub access
 ;;
-;; BLOCKED operations (via credential/file protection):
-;;   gh repo delete               — delete repository
-;;   gh repo rename               — rename repository (breaks references)
-;;   gh api -X DELETE ...         — arbitrary DELETE via API
-;;   gh secret delete             — delete repository/org secrets
-;;   gh variable delete           — delete repository/org variables
-;;   gh run cancel                — cancel workflow runs
-;;   gh workflow disable          — disable workflow
-;;   gh release delete           — delete release + assets
-;;   gh branch -D                 — force delete branch
+;; PHILOSOPHY: Only read operations are permitted. Any command that mutates
+;; repository/org state must be run manually by the user. The AI agent can
+;; inspect and create PRs/issues (low-risk), but cannot delete, force-push,
+;; or modify protected resources.
 ;;
-;; ALLOWED operations:
-;;   gh repo list/view/clone/fork
-;;   gh issue create/list/view/comment
-;;   gh pr create/list/view/merge
-;;   gh release create/list/view
-;;   gh workflow list/view/run
+;; BLOCKED commands (via credential protection + guard):
+;;   gh repo delete                   — delete repository
+;;   gh repo rename                   — rename repository
+;;   gh api -X DELETE ...             — arbitrary DELETE via API
+;;   gh api -X PUT/PATCH ...          — arbitrary mutations via API
+;;   gh secret delete                 — delete secrets
+;;   gh variable delete               — delete variables
+;;   gh run cancel                    — cancel workflow runs
+;;   gh workflow disable / enable     — modify workflow state
+;;   gh release delete                — delete release + assets
+;;   gh branch -D                     — force delete branch
+;;   gh pr merge (destructive)        — merge PRs
+;;   gh pr close                      — close PRs
+;;   gh issue close                   — close issues
+;;   gh repo edit                     — modify repo settings
+;;   gh repo sync                     — force sync fork
+;;
+;; ALLOWED commands:
+;;   gh repo list / view / clone / fork
+;;   gh issue create / list / view / comment
+;;   gh pr create / list / view / diff / checkout
+;;   gh release create / list / view / download
+;;   gh workflow list / view / run (trigger is ok for CI)
 ;;   gh secret set (adding is safe)
 ;;   gh api GET requests
-;;   gh auth status/refresh
+;;   gh auth status / refresh
+;;   gh api graphql (read queries)
 ;;
 ;; Parameters: _HOME, _PROJECT_DIR
 
@@ -51,8 +63,7 @@
 
 ;; ═══ Branch Protection ═══
 
-;; Deny writing to branch protection config
-;; (agents shouldn't remove protections)
+;; Deny writing to .git internals (prevents force-push, hook injection)
 (deny file-write* (subpath "_PROJECT_DIR/.git"))
 
 ;; ═══ Dependabot Config ═══
@@ -66,3 +77,8 @@
 ;; Deny writing to CODEOWNERS (prevents agent taking ownership)
 (deny file-write* (literal "_PROJECT_DIR/.github/CODEOWNERS"))
 (deny file-write* (literal "_PROJECT_DIR/docs/CODEOWNERS"))
+
+;; ═══ Environment/Deployment Protection ═══
+
+;; Deny writing to GitHub environments config
+(deny file-write* (subpath "_PROJECT_DIR/.github/environments"))
