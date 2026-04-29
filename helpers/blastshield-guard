@@ -23,29 +23,10 @@ readonly CYAN='\033[0;36m'
 readonly NC='\033[0m'
 
 # ─── Destructive Command Definitions ─────────────────────────────────────
-
-# Format: CLI_NAME:SUBCOMMAND_PATTERN
+# Format: CLI_NAME:PATTERN (colon-separated, space-delimited pairs)
 # Patterns support glob matching
 
-declare -A DESTRUCTIVE_COMMANDS
-
-# Terraform
-DESTRUCTIVE_COMMANDS[terraform]="destroy"
-
-# gcloud
-DESTRUCTIVE_COMMANDS[gcloud]="delete"
-
-# AWS
-DESTRUCTIVE_COMMANDS[aws]="delete*"
-
-# Azure
-DESTRUCTIVE_COMMANDS[az]="delete"
-
-# kubectl
-DESTRUCTIVE_COMMANDS[kubectl]="delete"
-
-# gh (GitHub CLI)
-DESTRUCTIVE_COMMANDS[gh]="delete"
+DESTRUCTIVE_PATTERNS="terraform:destroy gcloud:delete aws:delete* az:delete kubectl:delete gh:delete"
 
 # ─── Helper Functions ─────────────────────────────────────────────────────
 
@@ -53,33 +34,67 @@ info()  { echo -e "${CYAN}[blastshield-guard]${NC} $*"; }
 warn()  { echo -e "${YELLOW}[blastshield-guard]${NC} $*"; }
 error() { echo -e "${RED}[blastshield-guard]${NC} $*" >&2; }
 
+# Get the destructive pattern for a CLI (returns empty if not guarded)
+get_pattern() {
+    local cli="$1"
+    local pair
+    for pair in $DESTRUCTIVE_PATTERNS; do
+        local name="${pair%%:*}"
+        local pattern="${pair#*:}"
+        if [[ "$name" == "$cli" ]]; then
+            echo "$pattern"
+            return 0
+        fi
+    done
+    return 1
+}
+
 # Check if a command matches destructive patterns
 is_destructive() {
     local cli="$1"
     shift
     local args=("$@")
 
-    local patterns="${DESTRUCTIVE_COMMANDS[$cli]:-}"
+    local patterns
+    patterns=$(get_pattern "$cli") || return 1
 
     # No patterns defined = not guarded
     [[ -z "$patterns" ]] && return 1
 
-    # Check first subcommand against patterns
-    local subcmd="${args[0]:-}"
-
-    # Handle flags before subcommand (e.g., --project xyz delete)
+    # Find the subcommand (skip flags)
+    local subcmd=""
     local i=0
-    while [[ $i -lt ${#args[@]} ]] && [[ "${args[$i]}" == -* ]]; do
+    while [[ $i -lt ${#args[@]} ]]; do
+        case "${args[$i]}" in
+            --*=*)
+                # --flag=value style, skip
+                ;;
+            --)
+                # End of flags
+                ((i++))
+                subcmd="${args[$i]:-}"
+                break
+                ;;
+            -*)
+                # Flag, skip it and possibly its argument
+                # Check if next arg is a value (not a flag)
+                if [[ $((i + 1)) -lt ${#args[@]} ]] && [[ "${args[$((i+1))]}" != -* ]]; then
+                    ((i++))
+                fi
+                ;;
+            *)
+                # First non-flag is the subcommand
+                subcmd="${args[$i]}"
+                break
+                ;;
+        esac
         ((i++))
-        # Skip flag argument if it takes a value
-        if [[ "${args[$i-1]}" == --* && ! "${args[$i-1]}" == --* ]]; then
-            ((i++)) 2>/dev/null || true
-        fi
     done
-    subcmd="${args[$i]:-}"
+
+    [[ -z "$subcmd" ]] && return 1
 
     for pattern in $patterns; do
-        # Simple glob matching
+        # Simple glob matching via case
         case "$subcmd" in
             $pattern)
                 return 0
@@ -135,10 +150,16 @@ install_guards() {
     echo "Installing blastshield-guard wrappers in $target_dir"
     echo ""
 
-    for cli in "${!DESTRUCTIVE_COMMANDS[@]}"; do
+    local pair cli pattern real_binary
+    for pair in $DESTRUCTIVE_PATTERNS; do
+        cli="${pair%%:*}"
+        pattern="${pair#*:}"
+
         local wrapper="$target_dir/$cli"
-        local real_binary
-        real_binary=$(PATH=$(echo "$PATH" | tr ':' '\n' | grep -v "$target_dir" | tr '\n' ':') command -v "$cli" 2>/dev/null || echo "")
+        real_binary=$(
+            PATH=$(echo "$PATH" | tr ':' '\n' | grep -v "$target_dir" | tr '\n' ':')
+            command -v "$cli" 2>/dev/null || echo ""
+        )
 
         if [[ -z "$real_binary" ]]; then
             echo "  ⏭  $cli — not found on system, skipping"
@@ -150,7 +171,7 @@ install_guards() {
 #!/usr/bin/env bash
 # blastshield-guard wrapper for $cli
 # Auto-generated — do not edit
-source "$GUARD_DIR/blastshield-guard" 2>/dev/null || source "$(command -v blastshield-guard 2>/dev/null || echo "$GUARD_DIR/blastshield-guard")" 2>/dev/null
+source "$GUARD_DIR/blastshield-guard" 2>/dev/null
 
 cli="$cli"
 args=("\$@")
@@ -159,10 +180,10 @@ if is_destructive "\$cli" "\${args[@]}"; then
     require_auth "\$cli" "\${args[@]}"
 fi
 
-exec "$(command -v "$cli" 2>/dev/null || echo "$real_binary")" "\$@"
+exec "$real_binary" "\$@"
 WRAPPER
         chmod +x "$wrapper"
-        echo "  ✅ $cli → $real_binary (guards: ${DESTRUCTIVE_COMMANDS[$cli]})"
+        echo "  ✅ $cli → $real_binary (guards: $pattern)"
     done
 
     echo ""
@@ -176,7 +197,9 @@ uninstall_guards() {
     local target_dir="${1:-$GUARD_DIR}"
     echo "Removing blastshield-guard wrappers from $target_dir"
 
-    for cli in "${!DESTRUCTIVE_COMMANDS[@]}"; do
+    local pair cli
+    for pair in $DESTRUCTIVE_PATTERNS; do
+        cli="${pair%%:*}"
         local wrapper="$target_dir/$cli"
         if [[ -f "$wrapper" ]]; then
             rm "$wrapper"
@@ -189,7 +212,7 @@ uninstall_guards() {
 # ─── Main ─────────────────────────────────────────────────────────────────
 
 # If called directly (not sourced), handle subcommands
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+main_guard() {
     case "${1:-}" in
         install)
             shift
@@ -201,8 +224,11 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
             ;;
         list)
             echo "Guarded CLIs and their destructive patterns:"
-            for cli in $(echo "${!DESTRUCTIVE_COMMANDS[@]}" | tr ' ' '\n' | sort); do
-                echo "  $cli: ${DESTRUCTIVE_COMMANDS[$cli]}"
+            local pair
+            for pair in $DESTRUCTIVE_PATTERNS; do
+                local cli="${pair%%:*}"
+                local pattern="${pair#*:}"
+                echo "  $cli: $pattern"
             done
             ;;
         check)
@@ -257,4 +283,9 @@ HELP
             exit 1
             ;;
     esac
+}
+
+# Run main_guard only when executed directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main_guard "$@"
 fi
