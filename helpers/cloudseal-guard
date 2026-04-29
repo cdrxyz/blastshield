@@ -1,0 +1,260 @@
+#!/usr/bin/env bash
+# cloudseal-guard — Command-level guard for destructive cloud CLI subcommands
+#
+# sandbox-exec operates at the file/process level and cannot filter by
+# command arguments. This script provides command-argument-level filtering
+# as a complement to sandbox-exec profiles.
+#
+# Usage:
+#   1. Add to PATH before real CLIs: export PATH="$HOME/.cloudseal/guard:$PATH"
+#   2. Symlinks auto-generated: cloudseal-guard install
+#   3. Each guarded CLI gets a wrapper that blocks destructive subcommands
+#
+# The wrapper prompts for Touch ID / sudo password before allowing
+# destructive operations, then executes with normal (non-root) permissions.
+
+set -euo pipefail
+
+readonly GUARD_DIR="$(cd "$(dirname "$0")" && pwd)"
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly CYAN='\033[0;36m'
+readonly NC='\033[0m'
+
+# ─── Destructive Command Definitions ─────────────────────────────────────
+
+# Format: CLI_NAME:SUBCOMMAND_PATTERN
+# Patterns support glob matching
+
+declare -A DESTRUCTIVE_COMMANDS
+
+# Terraform
+DESTRUCTIVE_COMMANDS[terraform]="destroy"
+
+# gcloud
+DESTRUCTIVE_COMMANDS[gcloud]="delete"
+
+# AWS
+DESTRUCTIVE_COMMANDS[aws]="delete*"
+
+# Azure
+DESTRUCTIVE_COMMANDS[az]="delete"
+
+# kubectl
+DESTRUCTIVE_COMMANDS[kubectl]="delete"
+
+# gh (GitHub CLI)
+DESTRUCTIVE_COMMANDS[gh]="delete"
+
+# ─── Helper Functions ─────────────────────────────────────────────────────
+
+info()  { echo -e "${CYAN}[cloudseal-guard]${NC} $*"; }
+warn()  { echo -e "${YELLOW}[cloudseal-guard]${NC} $*"; }
+error() { echo -e "${RED}[cloudseal-guard]${NC} $*" >&2; }
+
+# Check if a command matches destructive patterns
+is_destructive() {
+    local cli="$1"
+    shift
+    local args=("$@")
+
+    local patterns="${DESTRUCTIVE_COMMANDS[$cli]:-}"
+
+    # No patterns defined = not guarded
+    [[ -z "$patterns" ]] && return 1
+
+    # Check first subcommand against patterns
+    local subcmd="${args[0]:-}"
+
+    # Handle flags before subcommand (e.g., --project xyz delete)
+    local i=0
+    while [[ $i -lt ${#args[@]} ]] && [[ "${args[$i]}" == -* ]]; do
+        ((i++))
+        # Skip flag argument if it takes a value
+        if [[ "${args[$i-1]}" == --* && ! "${args[$i-1]}" == --* ]]; then
+            ((i++)) 2>/dev/null || true
+        fi
+    done
+    subcmd="${args[$i]:-}"
+
+    for pattern in $patterns; do
+        # Simple glob matching
+        case "$subcmd" in
+            $pattern)
+                return 0
+                ;;
+        esac
+    done
+
+    return 1
+}
+
+# Require biometric/password authentication
+require_auth() {
+    local cli="$1"
+    shift
+    local args=("$@")
+
+    echo -e "${RED}⛔ BLOCKED: Destructive command detected${NC}"
+    echo -e "${RED}   $cli ${args[*]}${NC}"
+    echo ""
+    echo -e "${YELLOW}This operation requires biometric/password authentication.${NC}"
+    echo -e "${YELLOW}Authenticate to proceed, or Ctrl+C to cancel.${NC}"
+    echo ""
+
+    # Force fresh authentication (Touch ID or password)
+    sudo -k 2>/dev/null
+    if ! sudo -v 2>/dev/null; then
+        error "Authentication failed. Command blocked."
+        exit 1
+    fi
+
+    # Authenticated — allow through
+    echo -e "${GREEN}✅ Authenticated. Proceeding with destructive command.${NC}"
+}
+
+# Find the real binary (bypassing our wrapper)
+find_real_binary() {
+    local cli="$1"
+    # Remove guard dir from PATH and find the real binary
+    local real_path
+    real_path=$(
+        PATH=$(echo "$PATH" | tr ':' '\n' | grep -v "$GUARD_DIR" | tr '\n' ':')
+        command -v "$cli" 2>/dev/null
+    )
+    echo "${real_path:-$cli}"
+}
+
+# ─── Install/Uninstall ────────────────────────────────────────────────────
+
+install_guards() {
+    local target_dir="${1:-$GUARD_DIR}"
+    mkdir -p "$target_dir"
+
+    echo "Installing cloudseal-guard wrappers in $target_dir"
+    echo ""
+
+    for cli in "${!DESTRUCTIVE_COMMANDS[@]}"; do
+        local wrapper="$target_dir/$cli"
+        local real_binary
+        real_binary=$(PATH=$(echo "$PATH" | tr ':' '\n' | grep -v "$target_dir" | tr '\n' ':') command -v "$cli" 2>/dev/null || echo "")
+
+        if [[ -z "$real_binary" ]]; then
+            echo "  ⏭  $cli — not found on system, skipping"
+            continue
+        fi
+
+        # Create wrapper script
+        cat > "$wrapper" << WRAPPER
+#!/usr/bin/env bash
+# cloudseal-guard wrapper for $cli
+# Auto-generated — do not edit
+source "$GUARD_DIR/cloudseal-guard" 2>/dev/null || source "$(command -v cloudseal-guard 2>/dev/null || echo "$GUARD_DIR/cloudseal-guard")" 2>/dev/null
+
+cli="$cli"
+args=("\$@")
+
+if is_destructive "\$cli" "\${args[@]}"; then
+    require_auth "\$cli" "\${args[@]}"
+fi
+
+exec "$(command -v "$cli" 2>/dev/null || echo "$real_binary")" "\$@"
+WRAPPER
+        chmod +x "$wrapper"
+        echo "  ✅ $cli → $real_binary (guards: ${DESTRUCTIVE_COMMANDS[$cli]})"
+    done
+
+    echo ""
+    echo "Add to your PATH (before real CLIs):"
+    echo "  export PATH=\"$target_dir:\$PATH\""
+    echo ""
+    echo "For AI agents, add to their environment config."
+}
+
+uninstall_guards() {
+    local target_dir="${1:-$GUARD_DIR}"
+    echo "Removing cloudseal-guard wrappers from $target_dir"
+
+    for cli in "${!DESTRUCTIVE_COMMANDS[@]}"; do
+        local wrapper="$target_dir/$cli"
+        if [[ -f "$wrapper" ]]; then
+            rm "$wrapper"
+            echo "  🗑  $cli"
+        fi
+    done
+    echo "Done. Remove from PATH if needed."
+}
+
+# ─── Main ─────────────────────────────────────────────────────────────────
+
+# If called directly (not sourced), handle subcommands
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    case "${1:-}" in
+        install)
+            shift
+            install_guards "$@"
+            ;;
+        uninstall)
+            shift
+            uninstall_guards "$@"
+            ;;
+        list)
+            echo "Guarded CLIs and their destructive patterns:"
+            for cli in $(echo "${!DESTRUCTIVE_COMMANDS[@]}" | tr ' ' '\n' | sort); do
+                echo "  $cli: ${DESTRUCTIVE_COMMANDS[$cli]}"
+            done
+            ;;
+        check)
+            # Check if a specific command would be blocked
+            shift
+            local cli="${1:-}"
+            [[ -z "$cli" ]] && { echo "Usage: cloudseal-guard check <cli> [args...]"; exit 1; }
+            shift
+            if is_destructive "$cli" "$@"; then
+                echo "BLOCKED: $cli $* matches destructive pattern"
+                exit 1
+            else
+                echo "ALLOWED: $cli $*"
+                exit 0
+            fi
+            ;;
+        -h|--help|help)
+            cat <<'HELP'
+cloudseal-guard — Command-level guard for destructive cloud CLI subcommands
+
+USAGE:
+    cloudseal-guard install [DIR]    Install wrapper scripts to DIR (default: guard dir)
+    cloudseal-guard uninstall [DIR]  Remove wrapper scripts
+    cloudseal-guard list            List guarded CLIs and patterns
+    cloudseal-guard check CLI ARGS  Check if a command would be blocked
+    cloudseal-guard help            Show this help
+
+GUARDED CLIS:
+    terraform:  destroy
+    gcloud:     delete
+    aws:        delete*
+    az:         delete
+    kubectl:    delete
+    gh:         delete
+
+HOW IT WORKS:
+    1. Install creates wrapper scripts in a directory
+    2. Prepend that directory to PATH
+    3. Wrappers intercept destructive subcommands
+    4. Require Touch ID / sudo password before proceeding
+    5. Non-destructive commands pass through immediately
+
+PAIR WITH SANDBOX-EXEC:
+    cloudseal-guard handles command-argument filtering
+    sandbox-exec (cloudseal) handles filesystem/process/network filtering
+    Use both together for defense in depth.
+HELP
+            ;;
+        *)
+            echo "Unknown command: ${1:-}"
+            echo "Try: cloudseal-guard help"
+            exit 1
+            ;;
+    esac
+fi

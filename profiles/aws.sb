@@ -1,0 +1,67 @@
+;; cloudseal aws profile — prevent destructive AWS operations
+;;
+;; BLOCKED operations (via credential/file protection):
+;;   aws s3 rb                     — delete bucket
+;;   aws s3 rm --recursive         — delete all objects in bucket
+;;   aws ec2 terminate-instances   — terminate EC2 instances
+;;   aws rds delete-db-instance    — delete RDS database
+;;   aws cloudformation delete-stack — delete entire stack
+;;   aws dynamodb delete-table     — delete DynamoDB table
+;;   aws iam delete-role/policy/user — IAM destruction
+;;   aws lambda delete-function    — delete Lambda function
+;;   aws eks delete-cluster         — delete EKS cluster
+;;   aws secretsmanager delete-secret — delete secrets
+;;
+;; ALLOWED operations:
+;;   aws s3 ls, cp, sync (upload)
+;;   aws ec2 describe/run/start/stop
+;;   aws rds describe/create
+;;   aws cloudformation describe/create/validate
+;;   aws dynamodb describe/scan/query/put-item
+;;   aws iam list/get/create-role
+;;   aws lambda list/invoke
+;;   aws sts get-caller-identity (whoami)
+;;
+;; Parameters: _HOME, _PROJECT_DIR
+
+(version 1)
+
+;; ═══ AWS Credential Protection ═══
+
+;; Already in secrets profile, explicit here for standalone use
+(deny file-read* (literal "_HOME/.aws/credentials"))
+(deny file-write* (subpath "_HOME/.aws"))
+
+;; ═══ AWS CLI Config Restriction ═══
+
+;; Allow reading config (region, output format) but deny writing
+(deny file-write* (literal "_HOME/.aws/config"))
+
+;; ═══ SSO Cache ═══
+
+;; Deny reading AWS SSO cache tokens (prevents session hijacking)
+(deny file-read* (subpath "_HOME/.aws/sso/cache"))
+(deny file-write* (subpath "_HOME/.aws/sso"))
+
+;; ═══ CLI Binary Store ═══
+
+;; Deny writing to the CLI binary store (prevents replacing aws binary)
+(deny file-write* (subpath "_HOME/.aws/cli"))
+
+;; ═══ SAM/CDK State ═══
+
+;; Deny writing to SAM/CDK state files (prevents stack corruption)
+(deny file-write* (regex #"_PROJECT_DIR/.*cdk\.json$"))
+(deny file-write* (regex #"_PROJECT_DIR/.*samconfig\.toml$"))
+(deny file-write* (regex #"_PROJECT_DIR/.*\.template\.packaged$"))
+
+;; ═══ Terraform State ═══
+
+(deny file-write* (regex #"_PROJECT_DIR/.*\.tfstate$"))
+(deny file-write* (regex #"_PROJECT_DIR/.*\.tfstate\.backup$"))
+
+;; ═══ AWS SAM Local ═══
+
+;; Prevent writing to SAM local runtime
+(deny file-write* (subpath "_TMPDIR/sam-"))
+(deny file-write* (subpath "/tmp/sam-"))

@@ -1,0 +1,79 @@
+;; cloudseal base profile — minimum viable sandbox for any AI agent
+;; Always loaded. Provides: filesystem read, process exec, temp writes,
+;; project writes, and blocks destructive system operations.
+;;
+;; Parameters injected by wrapper: _HOME, _PROJECT_DIR, _TMPDIR
+
+(version 1)
+
+;; ═══ Default: Deny All ═══
+(deny default)
+
+;; ═══ Filesystem: Read Access ═══
+
+;; Read most of the filesystem (runtimes, tools, libraries)
+(allow file-read* (subpath "/"))
+(allow file-read-metadata (subpath "/"))
+
+;; ═══ Filesystem: Write Access ═══
+
+;; Write to project directory (with exceptions — see below)
+(allow file-write* (subpath "_PROJECT_DIR"))
+
+;; Write to temp directories
+(allow file-write* (subpath "_TMPDIR"))
+(allow file-write* (subpath "/private/tmp"))
+(allow file-write* (subpath "/var/folders"))
+
+;; Write to user cache (package managers need this)
+(allow file-write* (subpath "_HOME/.cache"))
+
+;; ═══ Filesystem: Protected Write Paths ═══
+;; Block writes to dangerous locations even within project dir
+
+;; No writing to .git internals (hooks, config) — prevents persistence
+(deny file-write* (subpath "_PROJECT_DIR/.git/hooks"))
+(deny file-write* (subpath "_PROJECT_DIR/.git/config"))
+
+;; No writing to IDE/editor configs (prevents agent planting settings)
+(deny file-write* (subpath "_PROJECT_DIR/.vscode"))
+(deny file-write* (subpath "_PROJECT_DIR/.idea"))
+
+;; No writing to MCP config (prevents agent adding its own tools)
+(deny file-write* (subpath "_PROJECT_DIR/.mcp.json"))
+
+;; ═══ Process Execution ═══
+
+;; Allow running any binary (individual profiles may restrict)
+(allow process-exec (subpath "/"))
+(allow process-fork)
+
+;; ═══ Network ═══
+
+;; Allow all outbound network (API calls, git, package installs)
+;; Individual cloud profiles may restrict specific endpoints
+(allow network-outbound)
+(allow network-inbound (local))
+
+;; ═══ IPC and System ═══
+
+(allow ipc*)
+(allow mach*)
+(allow signal)
+(allow sysctl-read)
+
+;; ═══ Denied: Destructive System Operations ═══
+
+;; No writing to system directories
+(deny file-write* (subpath "/etc"))
+(deny file-write* (subpath "/usr"))
+(deny file-write* (subpath "/bin"))
+(deny file-write* (subpath "/sbin"))
+(deny file-write* (subpath "/System"))
+
+;; No mounting/unmounting
+(deny mount)
+(deny unmount)
+
+;; No kernel extensions
+(deny iokit-open)

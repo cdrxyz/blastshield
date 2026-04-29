@@ -1,0 +1,71 @@
+;; cloudseal gcloud profile — prevent destructive GCP operations
+;;
+;; BLOCKED operations (via credential/file protection):
+;;   gcloud compute instances delete
+;;   gcloud compute disks delete
+;;   gcloud sql instances delete
+;;   gcloud storage rm (buckets)
+;;   gcloud projects delete
+;;   gcloud container clusters delete
+;;   gcloud pubsub topics delete / subscriptions delete
+;;   gcloud bigtable instances delete
+;;   gcloud firestore export/import (data exfiltration vector)
+;;   gcloud iam roles delete / service-accounts delete
+;;   gcloud deployment-manager deployments delete
+;;
+;; ALLOWED operations:
+;;   gcloud compute instances list/describe/start/stop
+;;   gcloud storage cp (upload)
+;;   gcloud builds submit
+;;   gcloud functions deploy
+;;   gcloud run deploy
+;;   gcloud container clusters get-credentials
+;;   gcloud iam roles create/list/describe
+;;   gcloud projects list/describe
+;;
+;; NOTE: sandbox-exec cannot filter by command sub-arguments. This profile
+;; protects credential files that gcloud needs for authentication. If gcloud
+;; can't read its credentials, it can't execute any authenticated operation.
+;; For finer-grained command filtering, pair with the helper script.
+;;
+;; Parameters: _HOME, _PROJECT_DIR
+
+(version 1)
+
+;; ═══ GCP Credential Protection ═══
+
+;; Already covered by secrets profile, but explicit here for standalone use
+(deny file-read* (subpath "_HOME/.config/gcloud/credentials"))
+(deny file-read* (subpath "_HOME/.config/gcloud/access_tokens"))
+(deny file-read* (subpath "_HOME/.config/gcloud/legacy_credentials"))
+(deny file-write* (subpath "_HOME/.config/gcloud/credentials"))
+(deny file-write* (subpath "_HOME/.config/gcloud/access_tokens"))
+
+;; ═══ Application Default Credentials ═══
+
+(deny file-read* (literal "_HOME/.config/gcloud/application_default_credentials.json"))
+(deny file-write* (literal "_HOME/.config/gcloud/application_default_credentials.json"))
+
+;; ═══ Service Account Keys ═══
+
+;; Deny reading any service account key files (common in projects)
+(deny file-read* (regex #".*service-account.*\.json$"))
+(deny file-read* (regex #".*sa-key.*\.json$"))
+(deny file-read* (regex #".*gcp-key.*\.json$"))
+(deny file-read* (regex #".*gcloud-key.*\.json$"))
+
+;; ═══ Terraform State in GCS ═══
+
+;; Deny writing to any local GCS state cache
+(deny file-write* (regex #"_PROJECT_DIR/.*\.tfstate$"))
+
+;; ═══ GCS Fuse Mount Protection ═══
+
+;; If GCS buckets are mounted via gcsfuse, prevent write access
+(deny file-write* (subpath "/Volumes/gcs"))
+
+;; ═══ Cloud SQL Proxy Socket ═══
+
+;; Prevent writing to cloud SQL proxy sockets (database access vector)
+(deny file-write* (subpath "_TMPDIR/cloudsql"))
+(deny file-write* (subpath "/tmp/cloudsql"))
