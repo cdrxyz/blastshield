@@ -85,23 +85,27 @@ jobs:
               errors=$((errors + 1))
             fi
 
-            # Validate with sandbox-exec if available
+            # Validate with sandbox-exec
             tmp=$(mktemp)
-            sed -e "s/_HOME/\/Users\/runner/g" \
-                -e "s/_PROJECT_DIR/\/Users\/runner\/project/g" \
-                -e "s/_TMPDIR/\/tmp/g" \
+            sed -e "s/_HOME/\\/Users\\/runner/g" \
+                -e "s/_PROJECT_DIR/\\/Users\\/runner\\/project/g" \
+                -e "s/_TMPDIR/\\/tmp/g" \
                 "$profile" > "$tmp"
-            
-            if sandbox-exec -f "$tmp" -- /bin/true 2>&1; then
+
+            output=$(sandbox-exec -f "$tmp" -- /usr/bin/true 2>&1)
+            exit_code=$?
+
+            if [ $exit_code -eq 0 ]; then
               echo "  ✅ sandbox-exec accepts profile"
             else
-              # sandbox-exec may abort but not due to syntax errors
-              # Check stderr for actual syntax issues
-              if sandbox-exec -f "$tmp" -- /bin/true 2>&1 | grep -qi "syntax\|parse\|invalid\|unrecognized"; then
-                echo "  ❌ sandbox-exec reports syntax error"
+              # Check for syntax errors (not environment/runtime issues)
+              if echo "$output" | grep -qi "syntax\|parse\|unbound variable\|invalid\|unrecognized"; then
+                echo "  ❌ sandbox-exec reports syntax error:"
+                echo "    $output"
                 errors=$((errors + 1))
               else
                 echo "  ⚠️  sandbox-exec non-zero exit (may be environment issue, not syntax)"
+                echo "    $output"
               fi
             fi
             rm -f "$tmp"
@@ -112,3 +116,46 @@ jobs:
             exit 1
           fi
           echo "✅ All profiles valid"
+
+  deploy-docs:
+    name: Deploy Docs
+    needs: [docs, lint-profiles, test]
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build docs
+        run: npm run build
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

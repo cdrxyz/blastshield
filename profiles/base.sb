@@ -53,7 +53,7 @@
 ;; Allow all outbound network (API calls, git, package installs)
 ;; Individual cloud profiles may restrict specific endpoints
 (allow network-outbound)
-(allow network-inbound (local))
+(allow network-inbound)
 
 ;; ═══ IPC and System ═══
 
@@ -72,8 +72,8 @@
 (deny file-write* (subpath "/System"))
 
 ;; No mounting/unmounting
-(deny mount)
-(deny unmount)
+(deny file-write-mount)
+(deny file-write-umount)
 
 ;; No kernel extensions
 (deny iokit-open)
