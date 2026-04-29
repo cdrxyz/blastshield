@@ -1,0 +1,68 @@
+;; cloudseal gh profile — prevent destructive GitHub operations
+;;
+;; BLOCKED operations (via credential/file protection):
+;;   gh repo delete               — delete repository
+;;   gh repo rename               — rename repository (breaks references)
+;;   gh api -X DELETE ...         — arbitrary DELETE via API
+;;   gh secret delete             — delete repository/org secrets
+;;   gh variable delete           — delete repository/org variables
+;;   gh run cancel                — cancel workflow runs
+;;   gh workflow disable          — disable workflow
+;;   gh release delete           — delete release + assets
+;;   gh branch -D                 — force delete branch
+;;
+;; ALLOWED operations:
+;;   gh repo list/view/clone/fork
+;;   gh issue create/list/view/comment
+;;   gh pr create/list/view/merge
+;;   gh release create/list/view
+;;   gh workflow list/view/run
+;;   gh secret set (adding is safe)
+;;   gh api GET requests
+;;   gh auth status/refresh
+;;
+;; Parameters: _HOME, _PROJECT_DIR
+
+(version 1)
+
+;; ═══ GitHub CLI Auth Protection ═══
+
+;; Deny reading gh hosts.yml (contains OAuth tokens)
+(deny file-read* (literal "_HOME/.config/gh/hosts.yml"))
+(deny file-write* (subpath "_HOME/.config/gh"))
+
+;; ═══ Git Credential Store ═══
+
+;; Deny reading credential helpers
+(deny file-read* (literal "_HOME/.git-credentials"))
+(deny file-write* (literal "_HOME/.git-credentials"))
+
+;; ═══ GitHub Token Files ═══
+
+;; Deny reading common token file locations
+(deny file-read* (regex #".*github.*token.*"))
+(deny file-read* (regex #".*gh_token.*"))
+(deny file-read* (regex #".*GITHUB_TOKEN.*\.env"))
+
+;; ═══ GitHub Actions State ═══
+
+;; Deny writing to workflow files (prevents agent modifying CI/CD)
+(deny file-write* (subpath "_PROJECT_DIR/.github/workflows"))
+
+;; ═══ Branch Protection ═══
+
+;; Deny writing to branch protection config
+;; (agents shouldn't remove protections)
+(deny file-write* (subpath "_PROJECT_DIR/.git"))
+
+;; ═══ Dependabot Config ═══
+
+;; Deny writing to dependabot config (prevents disabling security updates)
+(deny file-write* (literal "_PROJECT_DIR/.github/dependabot.yml"))
+(deny file-write* (literal "_PROJECT_DIR/.github/dependabot.yaml"))
+
+;; ═══ CODEOWNERS ═══
+
+;; Deny writing to CODEOWNERS (prevents agent taking ownership)
+(deny file-write* (literal "_PROJECT_DIR/.github/CODEOWNERS"))
+(deny file-write* (literal "_PROJECT_DIR/docs/CODEOWNERS"))

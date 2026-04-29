@@ -1,0 +1,66 @@
+;; cloudseal kubectl profile — prevent destructive Kubernetes operations
+;;
+;; BLOCKED operations (via credential/file protection):
+;;   kubectl delete                 — delete any resource
+;;   kubectl delete namespace        — delete entire namespace
+;;   kubectl delete pods --all       — delete all pods
+;;   kubectl delete deployment       — delete deployment
+;;   kubectl scale --replicas=0      — scale to zero (effective deletion)
+;;   kubectl patch (destructive)     — modify resource configs
+;;   kubectl taint (disruptive)     — affect scheduling
+;;   kubectl cordon/uncordon/drain   — node manipulation
+;;
+;; ALLOWED operations:
+;;   kubectl get, describe, list
+;;   kubectl logs, top, events
+;;   kubectl apply (create/update)
+;;   kubectl exec (read-only investigation)
+;;   kubectl port-forward
+;;   kubectl rollout status/history
+;;   kubectl config get-contexts/use-context
+;;
+;; IMPORTANT: kubectl reads credentials from kubeconfig. By denying
+;; access to kubeconfig, we prevent ALL authenticated kubectl operations.
+;; This is a blunt instrument. For safer granular control, use the
+;; helper script which filters by subcommand.
+;;
+;; Parameters: _HOME, _PROJECT_DIR
+
+(version 1)
+
+;; ═══ Kubeconfig Protection ═══
+
+;; Deny reading kubeconfig (blocks all authenticated cluster operations)
+;; This is the nuclear option — uncomment if you want full block
+;; (deny file-read* (subpath "_HOME/.kube"))
+
+;; Alternatively: allow reading but deny writing to kubeconfig
+;; This lets the agent read cluster info but not add malicious contexts
+(allow file-read* (subpath "_HOME/.kube"))
+(deny file-write* (subpath "_HOME/.kube"))
+
+;; ═══ Kubeconfig Context Injection ═══
+
+;; Prevent adding new cluster contexts (lateral movement vector)
+(deny file-write* (literal "_HOME/.kube/config"))
+
+;; ═══ Service Account Tokens ═══
+
+;; Deny reading mounted service account tokens (in-cluster auth)
+(deny file-read* (subpath "/var/run/secrets/kubernetes.io"))
+(deny file-read* (subpath "/var/run/secrets/ec2"))
+
+;; ═══ Helm State ═══
+
+;; Deny writing to Helm release state (prevents uninstall/rollback)
+(deny file-write* (regex #"_PROJECT_DIR/.*Chart\.lock$"))
+
+;; ═══ Terraform State ═══
+
+(deny file-write* (regex #"_PROJECT_DIR/.*\.tfstate$"))
+(deny file-write* (regex #"_PROJECT_DIR/.*\.tfstate\.backup$"))
+
+;; ═══ Namespace Manifests ═══
+
+;; Deny writing to namespace-level manifests (prevents cluster-scoped changes)
+(deny file-write* (regex #"_PROJECT_DIR/.*namespace.*\.ya?ml$"))

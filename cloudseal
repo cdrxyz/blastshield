@@ -1,0 +1,397 @@
+#!/usr/bin/env bash
+# cloudseal — Sandbox AI coding agents with cloud CLI destructive command protection
+# Uses macOS sandbox-exec (Seatbelt) to enforce kernel-level restrictions
+#
+# Usage:
+#   cloudseal claude --dangerously-skip-permissions
+#   cloudseal codex
+#   cloudseal --profile terraform shell
+#   cloudseal --profile gcp -- claude
+
+set -euo pipefail
+
+readonly VERSION="0.1.0"
+readonly SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+readonly PROFILES_DIR="${SCRIPT_DIR}/profiles"
+
+# Colors (disabled if not a terminal)
+if [[ -t 1 ]]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    CYAN='\033[0;36m'
+    NC='\033[0m'
+else
+    RED='' GREEN='' YELLOW='' CYAN='' NC=''
+fi
+
+# ─── Default Configuration ───────────────────────────────────────────────
+
+# Default profiles: always loaded for baseline protection
+DEFAULT_PROFILES=("base" "secrets")
+
+# Cloud profiles: loaded when cloud CLIs are detected or specified
+CLOUD_PROFILES=("terraform" "gcloud" "aws" "azure" "kubectl" "gh")
+
+# ─── Helpers ──────────────────────────────────────────────────────────────
+
+info()  { echo -e "${CYAN}[cloudseal]${NC} $*"; }
+warn()  { echo -e "${YELLOW}[cloudseal]${NC} $*"; }
+error() { echo -e "${RED}[cloudseal]${NC} $*" >&2; }
+die()   { error "$@"; exit 1; }
+
+# ─── Profile Assembly ────────────────────────────────────────────────────
+
+# Resolve a profile name to its file path
+resolve_profile() {
+    local name="$1"
+    local path="${PROFILES_DIR}/${name}.sb"
+
+    # Check built-in profiles first
+    if [[ -f "$path" ]]; then
+        echo "$path"
+        return 0
+    fi
+
+    # Check absolute/relative paths
+    if [[ -f "$name" ]]; then
+        echo "$(cd "$(dirname "$name")" && pwd)/$(basename "$name")"
+        return 0
+    fi
+
+    # Check XDG config
+    if [[ -f "${HOME}/.config/cloudseal/profiles/${name}.sb" ]]; then
+        echo "${HOME}/.config/cloudseal/profiles/${name}.sb"
+        return 0
+    fi
+
+    return 1
+}
+
+# Detect which cloud CLIs are available on this system
+detect_cloud_clis() {
+    local detected=()
+    for cli in terraform gcloud aws az kubectl gh; do
+        if command -v "$cli" &>/dev/null; then
+            detected+=("$cli")
+        fi
+    done
+    echo "${detected[*]}"
+}
+
+# Auto-detect relevant cloud profiles based on directory contents
+detect_cloud_profiles() {
+    local dir="${1:-$(pwd)}"
+    local profiles=()
+
+    # Terraform: .tf files
+    if find "$dir" -maxdepth 2 -name "*.tf" -print -quit 2>/dev/null | grep -q .; then
+        profiles+=("terraform")
+    fi
+
+    # GCP: .gcloudignore, cloudbuild.yaml, app.yaml
+    if find "$dir" -maxdepth 2 \( -name ".gcloudignore" -o -name "cloudbuild.yaml" -o -name "app.yaml" \) -print -quit 2>/dev/null | grep -q .; then
+        profiles+=("gcloud")
+    fi
+
+    # AWS: serverless.yml, sam.yaml, cdk.json, template.yaml
+    if find "$dir" -maxdepth 2 \( -name "serverless.yml" -o -name "template.yaml" -o -name "cdk.json" -o -name "samconfig.toml" \) -print -quit 2>/dev/null | grep -q .; then
+        profiles+=("aws")
+    fi
+
+    # Azure: azure-pipelines.yml, function.json, local.settings.json
+    if find "$dir" -maxdepth 2 \( -name "azure-pipelines.yml" -o -name "local.settings.json" \) -print -quit 2>/dev/null | grep -q .; then
+        profiles+=("azure")
+    fi
+
+    # Kubernetes: k8s/, kustomization.yaml, helm/Chart.yaml
+    if find "$dir" -maxdepth 3 \( -name "kustomization.yaml" -o -name "Chart.yaml" -o -name "skaffold.yaml" \) -print -quit 2>/dev/null | grep -q .; then
+        profiles+=("kubectl")
+    fi
+
+    # GitHub: .github/ directory
+    if [[ -d "$dir/.github" ]]; then
+        profiles+=("gh")
+    fi
+
+    echo "${profiles[*]}"
+}
+
+# Assemble a combined sandbox profile from multiple source profiles
+assemble_profile() {
+    local output_file="$1"
+    shift
+    local profile_names=("$@")
+
+    {
+        # Header
+        echo ";; cloudseal assembled profile — auto-generated, do not edit"
+        echo ";; Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+        echo ";; Profiles: ${profile_names[*]}"
+        echo ""
+
+        # Version directive (required by sandbox-exec)
+        echo "(version 1)"
+        echo ""
+
+        # Deny everything by default — whitelist model
+        echo ";; ═══ Default Policy: Deny All ═══"
+        echo "(deny default)"
+        echo ""
+
+        for name in "${profile_names[@]}"; do
+            local path
+            if ! path=$(resolve_profile "$name"); then
+                warn "Profile not found: $name (skipping)"
+                continue
+            fi
+
+            echo ";; ═══ Profile: $name ═══"
+            echo ";; Source: $path"
+            echo ""
+
+            # Strip the (version 1) line from included profiles — we already emitted it
+            # Also strip (deny default) from included profiles — base handles it
+            sed -E '/^\(version 1\)$/d; /^\(deny default\)$/d; /^;; .*Profile:/d' "$path"
+
+            echo ""
+        done
+
+    } > "$output_file"
+}
+
+# ─── Sandbox Execution ───────────────────────────────────────────────────
+
+run_sandboxed() {
+    local profile_file="$1"
+    shift
+    local command=("$@")
+
+    if [[ ${#command[@]} -eq 0 ]]; then
+        command=("$SHELL")
+    fi
+
+    if ! command -v sandbox-exec &>/dev/null; then
+        die "sandbox-exec not found. This tool requires macOS."
+    fi
+
+    info "Launching in sandbox with profile: $(basename "$profile_file")"
+    info "Command: ${command[*]}"
+
+    # Run the command inside the sandbox
+    sandbox-exec -f "$profile_file" -- "${command[@]}"
+    local exit_code=$?
+
+    if [[ $exit_code -ne 0 ]]; then
+        warn "Process exited with code $exit_code"
+    fi
+
+    return $exit_code
+}
+
+# ─── Diagnostics ──────────────────────────────────────────────────────────
+
+show_violations() {
+    info "Recent sandbox violations (last 5 minutes):"
+    log show --predicate 'subsystem == "com.apple.sandbox"' --last 5m 2>/dev/null || \
+        warn "Could not read system log (may need Full Disk Access in System Settings)"
+}
+
+show_status() {
+    local cloud_clis
+    cloud_clis=$(detect_cloud_clis)
+    local cloud_profiles
+    cloud_profiles=$(detect_cloud_profiles)
+
+    echo -e "${CYAN}cloudseal v${VERSION}${NC}"
+    echo ""
+    echo "Available cloud CLIs:"
+    for cli in $cloud_clis; do
+        local path
+        path=$(command -v "$cli")
+        echo "  ✅ $cli → $path"
+    done
+    echo ""
+    echo "Detected project profiles:"
+    for profile in $cloud_profiles; do
+        echo "  🔒 $profile"
+    done
+    echo ""
+    echo "Built-in profiles:"
+    for f in "$PROFILES_DIR"/*.sb; do
+        [[ -f "$f" ]] && echo "  📄 $(basename "$f" .sb)"
+    done
+}
+
+# ─── Main ─────────────────────────────────────────────────────────────────
+
+main() {
+    local profiles=("${DEFAULT_PROFILES[@]}")
+    local extra_profiles=()
+    local clean_env=false
+    auto_detect=true
+    local verbose=false
+    local diagnostic_mode=""
+    local command_args=()
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -p|--profile)
+                [[ $# -lt 2 ]] && die "--profile requires an argument"
+                extra_profiles+=("$2")
+                shift 2
+                ;;
+            --no-detect)
+                auto_detect=false
+                shift
+                ;;
+            -c|--clean-env)
+                clean_env=true
+                shift
+                ;;
+            -v|--verbose)
+                verbose=true
+                shift
+                ;;
+            --violations)
+                diagnostic_mode="violations"
+                shift
+                ;;
+            --status)
+                diagnostic_mode="status"
+                shift
+                ;;
+            --version)
+                echo "cloudseal v${VERSION}"
+                exit 0
+                ;;
+            -h|--help)
+                cat <<'HELP'
+cloudseal — Sandbox AI coding agents with cloud CLI destructive command protection
+
+USAGE:
+    cloudseal [OPTIONS] [--] COMMAND [ARGS...]
+
+OPTIONS:
+    -p, --profile NAME    Load additional profile (repeatable)
+                          Built-in: terraform, gcloud, aws, azure, kubectl, gh
+    --no-detect           Disable auto-detection of cloud profiles
+    -c, --clean-env       Strip environment variables (removes API keys from env)
+    -v, --verbose         Verbose output
+    --violations         Show recent sandbox violations from system log
+    --status             Show detected CLIs and profiles
+    --version            Show version
+    -h, --help           Show this help
+
+EXAMPLES:
+    # Run Claude Code with all auto-detected protections
+    cloudseal claude --dangerously-skip-permissions
+
+    # Run Codex with explicit terraform profile
+    cloudseal -p terraform codex
+
+    # Run a shell with GCP and AWS profiles
+    cloudseal -p gcloud -p aws bash
+
+    # Check what profiles would be loaded for current directory
+    cloudseal --status
+
+    # View recent sandbox violations
+    cloudseal --violations
+
+PROFILES:
+    Profiles are loaded in order. Later profiles can narrow earlier ones.
+    Default profiles (always loaded): base, secrets
+    Cloud profiles (auto-detected or explicit): terraform, gcloud, aws, azure, kubectl, gh
+
+    Compose with existing tools:
+    cloudseal -p terraform -- safehouse claude --dangerously-skip-permissions
+
+LAYERING:
+    cloudseal (OS-level, cloud CLI policy)
+      └── safehouse/seatbelt (OS-level, file policy)
+          └── agent's built-in sandbox (tool-level)
+              └── your agent process
+HELP
+                exit 0
+                ;;
+            --)
+                shift
+                command_args=("$@")
+                break
+                ;;
+            -*)
+                die "Unknown option: $1 (use -- to separate options from command)"
+                ;;
+            *)
+                command_args=("$@")
+                break
+                ;;
+        esac
+    done
+
+    # Handle diagnostic modes
+    if [[ -n "$diagnostic_mode" ]]; then
+        case "$diagnostic_mode" in
+            violations) show_violations; exit 0 ;;
+            status) show_status; exit 0 ;;
+        esac
+    fi
+
+    # Auto-detect cloud profiles from current directory
+    if $auto_detect && [[ ${#command_args[@]} -gt 0 ]]; then
+        local detected
+        detected=$(detect_cloud_profiles)
+        for profile in $detected; do
+            # Don't add duplicates
+            if [[ ! " ${extra_profiles[*]} " =~ " $profile " ]]; then
+                extra_profiles+=("$profile")
+                $verbose && info "Auto-detected profile: $profile"
+            fi
+        done
+    fi
+
+    # Assemble full profile list
+    profiles+=("${extra_profiles[@]}")
+
+    $verbose && info "Profiles: ${profiles[*]}"
+
+    # Create temporary assembled profile
+    local tmp_profile
+    tmp_profile=$(mktemp "${TMPDIR:-/tmp}/cloudseal.XXXXXX.sb")
+    trap 'rm -f "$tmp_profile"' EXIT
+
+    assemble_profile "$tmp_profile" "${profiles[@]}"
+
+    $verbose && info "Assembled profile: $tmp_profile"
+
+    # Clean environment if requested
+    if $clean_env; then
+        # Build a sanitized environment
+        local safe_env_vars=(
+            HOME PATH SHELL TERM LANG USER TMPDIR
+            SSH_AUTH_SOCK EDITOR VISUAL
+            XDG_CACHE_HOME XDG_CONFIG_HOME XDG_DATA_HOME XDG_STATE_HOME
+            ANTHROPIC_BASE_URL OPENAI_BASE_URL GOOGLE_BASE_URL
+            # Cloud SDK base URLs (safe, not secrets)
+            AWS_DEFAULT_REGION AWS_REGION
+            CLOUDSDK_CORE_PROJECT CLOUDSDK_COMPUTE_ZONE
+            AZURE_DEFAULTS_LOCATION AZURE_DEFAULTS_GROUP
+        )
+
+        local env_args=()
+        for var in "${safe_env_vars[@]}"; do
+            if [[ -n "${!var:-}" ]]; then
+                env_args+=("$var=${!var}")
+            fi
+        done
+
+        # Run with cleaned env inside sandbox
+        env -i "${env_args[@]}" run_sandboxed "$tmp_profile" "${command_args[@]}"
+    else
+        run_sandboxed "$tmp_profile" "${command_args[@]}"
+    fi
+}
+
+main "$@"

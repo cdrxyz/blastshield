@@ -1,0 +1,64 @@
+;; cloudseal terraform profile — prevent destructive Terraform operations
+;;
+;; BLOCKED commands:
+;;   terraform destroy         — deletes all managed infrastructure
+;;   terraform apply -destroy  — targeted resource destruction
+;;   terraform workspace delete — removes workspace state
+;;   terraform state rm        — removes resources from state (orphaning them)
+;;   terraform force-unlock     — dangerous lock manipulation
+;;
+;; ALLOWED commands:
+;;   terraform init, plan, apply (create/update only)
+;;   terraform fmt, validate, lint
+;;   terraform show, output, state list, state show
+;;   terraform import, taint, untaint
+;;   terraform workspace select, list, new
+;;
+;; IMPORTANT: sandbox-exec operates on file/process paths, not command arguments.
+;; This profile protects credential files and state files from destructive writes.
+;; For command-argument-level blocking, use the helper script instead.
+;;
+;; Parameters: _HOME, _PROJECT_DIR
+
+(version 1)
+
+;; ═══ Terraform State Protection ═══
+
+;; Deny writing to .tfstate files (prevents state corruption/destruction)
+;; State files track real infrastructure — destroying them orphans resources
+(deny file-write* (regex #"_PROJECT_DIR/.*\.tfstate$"))
+(deny file-write* (regex #"_PROJECT_DIR/.*\.tfstate\.backup$"))
+
+;; Deny writing to .terraform/ directory internals
+;; This prevents terraform init from replacing providers without review,
+;; but allows reading current provider configs
+(deny file-write* (subpath "_PROJECT_DIR/.terraform/providers"))
+
+;; ═══ Terraform Cloud/Enterprise Credentials ═══
+
+;; Deny reading Terraform Cloud API tokens
+(deny file-read* (literal "_HOME/.terraform.d/credentials.tfrc.json"))
+(deny file-read* (subpath "_HOME/.terraform.d/credentials"))
+(deny file-write* (subpath "_HOME/.terraform.d"))
+
+;; ═══ Backend Configuration ═══
+
+;; Deny writing to backend config files (prevents redirecting state to attacker bucket)
+(deny file-write* (regex #"_PROJECT_DIR/.*backend\.tf$"))
+(deny file-write* (regex #"_PROJECT_DIR/.*backend\.tfvars$"))
+
+;; ═══ Lock File Protection ═══
+
+;; Deny deleting .terraform.lock.hcl (ensures provider version integrity)
+(deny file-write* (literal "_PROJECT_DIR/.terraform.lock.hcl"))
+
+;; ═══ Cloud Backend State (remote state) ═══
+
+;; Deny writing to S3 state backends (common Terraform remote state pattern)
+;; This blocks terraform destroy's ability to push destroyed state to remote
+(deny file-write* (regex #"_HOME/\.terraform.*state.*"))
+
+;; ═══ Workspace Safety ═══
+
+;; Deny creating/deleting workspace directories (prevents workspace.delete)
+(deny file-write* (subpath "_PROJECT_DIR/.terraform/workspace"))

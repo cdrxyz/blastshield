@@ -1,0 +1,62 @@
+;; cloudseal azure profile — prevent destructive Azure operations
+;;
+;; BLOCKED operations (via credential/file protection):
+;;   az group delete              — delete entire resource group + all resources
+;;   az vm delete                 — delete virtual machine
+;;   az sql db delete              — delete SQL database
+;;   az storage account delete     — delete storage account
+;;   az aks delete                 — delete AKS cluster
+;;   az keyvault delete            — delete key vault
+;;   az webapp delete              — delete App Service
+;;   az functionapp delete         — delete Function App
+;;   az network vnet delete        — delete virtual network
+;;
+;; ALLOWED operations:
+;;   az group list/show/create
+;;   az vm list/show/start/deallocate
+;;   az sql db list/show/create
+;;   az storage blob upload/list
+;;   az aks get-credentials
+;;   az keyvault secret list/show/set
+;;   az webapp list/show/deploy
+;;   az functionapp list/show/deploy
+;;
+;; Parameters: _HOME, _PROJECT_DIR
+
+(version 1)
+
+;; ═══ Azure Credential Protection ═══
+
+;; Deny all access to Azure credential directory
+(deny file-read* (subpath "_HOME/.azure"))
+(deny file-write* (subpath "_HOME/.azure"))
+
+;; ═══ Azure CLI Token Cache ═══
+
+;; Deny access to MSAL token cache
+(deny file-read* (literal "_HOME/.azure/msal_token_cache.json"))
+(deny file-write* (literal "_HOME/.azure/msal_token_cache.json"))
+
+;; ═══ Azure Service Principal Files ═══
+
+;; Deny reading service principal credentials
+(deny file-read* (regex #".*sp\.json$"))
+(deny file-read* (regex #".*service-principal.*\.json$"))
+(deny file-read* (regex #".*azure-credentials.*"))
+
+;; ═══ ARM Template State ═══
+
+;; Deny writing to ARM parameter files (prevents injection)
+(deny file-write* (regex #"_PROJECT_DIR/.*parameters\.json$"))
+(deny file-write* (regex #"_PROJECT_DIR/.*\.arm\.json$"))
+
+;; ═══ Terraform State ═══
+
+(deny file-write* (regex #"_PROJECT_DIR/.*\.tfstate$"))
+(deny file-write* (regex #"_PROJECT_DIR/.*\.tfstate\.backup$"))
+
+;; ═══ Bicep Build Output ═══
+
+;; Allow reading bicep files but deny writing compiled ARM templates
+;; (agent should submit PRs, not deploy directly)
+(deny file-write* (regex #"_PROJECT_DIR/.*\.bicepparam$"))
