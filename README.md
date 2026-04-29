@@ -20,8 +20,11 @@ Kernel-level. Blocks access to credential files, state files, and protected path
 # Run Claude Code with all auto-detected cloud protections
 blastshield claude --dangerously-skip-permissions
 
-# Run Codex with explicit profiles
-blastshield -p terraform -p aws codex
+# Run Codex with full auto-approve
+blastshield codex --full-auto
+
+# Run OpenCode with explicit profiles
+blastshield -p terraform -p aws opencode
 
 # Run any command
 blastshield -p kubectl bash
@@ -54,6 +57,12 @@ export PATH="$PWD:$PATH"
 # Run Claude Code sandboxed
 blastshield claude --dangerously-skip-permissions
 
+# Run Codex sandboxed
+blastshield codex --full-auto
+
+# Run OpenCode sandboxed
+blastshield opencode
+
 # Install command-level guards
 blastshield-guard install ~/.blastshield/guard
 export PATH="$HOME/.blastshield/guard:$PATH"
@@ -70,15 +79,25 @@ blastshield --status
 # Auto-detect cloud profiles from project directory
 blastshield claude --dangerously-skip-permissions
 
+# Or with Codex
+blastshield codex --full-auto
+
+# Or with OpenCode
+blastshield opencode
+
 # Explicit profiles
 blastshield -p terraform codex
 blastshield -p gcloud -p aws opencode
 
 # Clean environment (strip API keys from env vars)
 blastshield -c claude --dangerously-skip-permissions
+blastshield -c codex --full-auto
+blastshield -c opencode
 
 # Disable auto-detection
 blastshield --no-detect claude
+blastshield --no-detect codex
+blastshield --no-detect opencode
 ```
 
 ### With Other Sandbox Tools
@@ -88,6 +107,8 @@ BlastShield composes with existing tools — layer them for defense in depth:
 ```bash
 # blastshield (cloud CLI policy) → safehouse (file policy) → agent's sandbox
 blastshield -p terraform -- safehouse claude --dangerously-skip-permissions
+blastshield -p aws -- safehouse codex --full-auto
+blastshield -p kubectl -- safehouse opencode
 ```
 
 ### Guard Installation
@@ -182,7 +203,7 @@ blastshield --violations
 ```
 ┌─────────────────────────────────────────────────┐
 │                  AI Agent                        │
-│  (Claude Code, Codex, Cursor, Gemini, etc.)     │
+│  (Claude Code, Codex, OpenCode, Cursor, Gemini, etc.)    │
 └──────────────────┬──────────────────────────────┘
                    │
     ┌──────────────┼──────────────────┐
@@ -292,4 +313,4 @@ BlastShield composes with all of the above. Use sandvault for user isolation, sa
 
 ## License
 
-MIT
+Apache License 2.0
