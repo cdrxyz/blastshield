@@ -319,6 +319,17 @@ MINIMAL
     fi
     rm -f "$tmp_profile"
 
+    # Test: interactive TUI terminal control works inside the sandbox
+    if command -v script &>/dev/null; then
+        if tty_out=$(script -q /dev/null "$BLASTSHIELD" --no-detect /bin/stty -a 2>&1); then
+            pass "integration: blastshield allows terminal ioctl for TUIs"
+        else
+            fail "integration: blastshield terminal ioctl failed" "$tty_out"
+        fi
+    else
+        skip "integration: script not available for pseudo-terminal test"
+    fi
+
     # Test: wrapper command with no extra profiles does not trip nounset on empty arrays
     if wrapper_out=$("$BLASTSHIELD" --no-detect /usr/bin/true 2>&1); then
         pass "integration: blastshield wrapper runs with no detected profiles"

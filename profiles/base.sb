@@ -15,6 +15,17 @@
 (allow file-read* (subpath "/"))
 (allow file-read-metadata (subpath "/"))
 
+;; Terminal control for interactive agent TUIs
+(allow pseudo-tty)
+(allow file-ioctl
+    (literal "/dev/ptmx")
+    (literal "/dev/tty")
+    (regex #"^/dev/ttys"))
+(allow file-read* file-write*
+    (literal "/dev/ptmx")
+    (literal "/dev/tty")
+    (regex #"^/dev/ttys"))
+
 ;; ═══ Filesystem: Write Access ═══
 
 ;; Write to project directory (with exceptions — see below)
