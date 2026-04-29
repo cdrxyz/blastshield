@@ -3,6 +3,10 @@ title: Whitepaper
 description: Why existing sandboxing solutions fall short for AI coding agents, the unique approach BlastShield takes, and remaining vulnerabilities and areas for further research.
 ---
 
+:::caution[Download the PDF]
+Prefer reading offline? Download the [academic-format PDF whitepaper](/blastshield/blastshield-whitepaper.pdf) (Cedar Labs, April 2026).
+:::
+
 ## The Problem
 
 AI coding agents — Claude Code, Codex, OpenCode, Cursor, and their peers — now operate with near-unrestricted access to developer machines. They read files, execute shell commands, and invoke cloud CLIs. The default deployment model trusts the agent entirely. When an agent runs with `--dangerously-skip-permissions`, `--full-auto`, or equivalent unrestricted modes, it can destroy production infrastructure in seconds.
