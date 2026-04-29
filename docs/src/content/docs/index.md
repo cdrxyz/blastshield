@@ -6,7 +6,7 @@ hero:
   tagline: Shrink the blast radius of your agentic engineering.
   actions:
     - text: Get Started
-      link: /getting-started/
+      link: ./getting-started/
       icon: right-arrow
     - text: GitHub
       link: https://github.com/cdrxyz/blastshield
