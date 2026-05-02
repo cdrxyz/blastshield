@@ -9,7 +9,7 @@ No single sandbox tool covers every threat. Each tool has its own focus:
 
 | Tool | Focus |
 |------|-------|
-| **BlastShield** | Cloud CLI destructive commands |
+| **BlastShield** | Cloud CLI destructive commands + package manager install blocking |
 | **agent-safehouse** | Filesystem policy (dotfiles, project files) |
 | **sandvault** | User isolation (separate macOS account) |
 | **agent-seatbelt** | Minimal sandbox-exec wrapper |
@@ -116,9 +116,9 @@ If you're already running inside a sandbox:
 
 ## Comparison Table
 
-| Project | Approach | Cloud CLI Protection? | File/Secrets Protection? | User Isolation? |
-|---------|----------|:---:|:---:|:---:|
-| [sandvault](https://github.com/webcoyote/sandvault) | Separate macOS user + sandbox-exec | ❌ | ✅ | ✅ |
-| [agent-safehouse](https://github.com/eugene1g/agent-safehouse) | Composable profiles | ❌ | ✅ | ❌ |
-| [agent-seatbelt](https://github.com/CJHwong/agent-seatbelt) | Two-file minimal wrapper | ❌ | ✅ | ❌ |
-| **BlastShield** | **sandbox-exec + command guard** | **✅** | **✅** | ❌ |
+| Project | Approach | Cloud CLI Protection? | Install Command Protection? | File/Secrets Protection? | User Isolation? |
+|---------|----------|:---:|:---:|:---:|:---:|
+| [sandvault](https://github.com/webcoyote/sandvault) | Separate macOS user + sandbox-exec | ❌ | ❌ | ✅ | ✅ |
+| [agent-safehouse](https://github.com/eugene1g/agent-safehouse) | Composable profiles | ❌ | ❌ | ✅ | ❌ |
+| [agent-seatbelt](https://github.com/CJHwong/agent-seatbelt) | Two-file minimal wrapper | ❌ | ❌ | ✅ | ❌ |
+| **BlastShield** | **sandbox-exec + command guard** | **✅** | **✅** | **✅** | ❌ |

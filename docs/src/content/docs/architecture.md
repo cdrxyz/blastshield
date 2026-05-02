@@ -67,6 +67,8 @@ This is the hard boundary. BlastShield uses macOS `sandbox-exec` (Apple Seatbelt
 
 - **Credential file reads** — The agent process physically cannot read `~/.aws/credentials`, `~/.azure/`, GCP service account keys, etc.
 - **State file writes** — Cannot modify Terraform state, Helm chart locks, or backend configurations
+- **Global package directory writes** — Cannot write to Homebrew Cellar, npm global `node_modules`, pip global site-packages, gem directories, Cargo registry, Hermit packages, or apt/dnf package caches
+- **Lockfile writes** — Cannot modify `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `Pipfile.lock`, `Gemfile.lock`, or `Cargo.lock`
 - **Protected path access** — Each profile defines its own set of protected paths
 
 ### What It Cannot Block
@@ -94,6 +96,16 @@ This layer handles what `sandbox-exec` cannot see: **which subcommands the agent
 | `az` | `delete` |
 | `kubectl` | `delete` |
 | `gh` | `delete` |
+| `npm` | `install`, `ci`, `add`, `remove` |
+| `pip` | `install` |
+| `brew` | `install`, `uninstall`, `upgrade` |
+| `yarn` | `add`, `remove`, `install` |
+| `pnpm` | `add`, `remove`, `install` |
+| `gem` | `install`, `uninstall`, `update` |
+| `cargo` | `add`, `install`, `rm` |
+| `hermit` | `install`, `uninstall` |
+| `apt` | `install`, `remove`, `purge` |
+| `dnf` | `install`, `remove`, `upgrade` |
 
 ### Important Note
 
@@ -108,5 +120,8 @@ Layer 2 is a **speed bump**, not a hard boundary. A determined agent that specif
 | Agent uses full path `/usr/local/bin/terraform destroy` | ❌ Same binary | ❌ Bypassed |
 | Agent runs `aws s3 rb` with already-loaded credentials | ❌ Creds already in env | ✅ Intercepted |
 | Agent exfiltrates secrets via network | ⚠️ Only if `-c` used | ❌ Not visible |
+| Agent runs `npm install` into global node_modules | ✅ Write denied | ✅ Intercepted |
+| Agent runs `pip install` into project venv | ❌ Project writes allowed | ✅ Intercepted |
+| Agent writes `package-lock.json` directly | ✅ Write denied | ❌ Not a CLI invocation |
 
 The layers are complementary — neither is sufficient alone. Use both for defense in depth.
