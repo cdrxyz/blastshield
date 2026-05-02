@@ -233,6 +233,25 @@ blastshield --violations
 | CODEOWNERS writes | `gh release create` |
 | Dependabot config writes | `gh auth status` |
 
+### Install (Package Manager) Profile
+
+Blocks AI agents from installing new dependencies without human review. Protects both the command-argument level (via guard) and the filesystem level (via sandbox profile).
+
+| Blocked | Allowed |
+|---------|---------|
+| `npm install / ci / add` | `npm list / ls / view / info / outdated` |
+| `yarn add / install / remove` | `yarn list / info / why / outdated` |
+| `pnpm add / install / remove` | `pnpm list / info / why / outdated` |
+| `pip install / uninstall / build` | `pip list / show / freeze / check` |
+| `brew install / reinstall / uninstall` | `brew list / info / search / outdated` |
+| `gem install / uninstall / build` | `gem list / search / spec / query` |
+| `cargo install / add / rm` | `cargo search / tree / list / metadata` |
+| `hermit install / uninstall / upgrade` | `hermit list / search / help / info` |
+| `apt install / remove / purge` | `apt list / search / show / cache` |
+| `dnf install / remove / upgrade` | `dnf list / search / info / check` |
+| Global package directories (writes) | Global package directories (reads) |
+| Lockfile writes | Lockfile reads |
+
 ## Architecture
 
 ```
@@ -295,6 +314,7 @@ Profiles are [SBPL](https://reverse.put.as/wp-content/uploads/2011/09/Apple-Sand
 | `azure` | Auto | Azure credential protection, MSAL cache denial, ARM protection |
 | `kubectl` | Auto | Kubeconfig write protection, SA token denial, Helm lock protection |
 | `gh` | Auto | GitHub auth protection, workflow file protection, CODEOWNERS locks |
+| `install` | Auto | Package manager install blocking, lockfile protection, global dir protection |
 
 ### Custom Profiles
 
@@ -325,6 +345,7 @@ BlastShield scans your project directory for indicator files:
 | `azure` | `azure-pipelines.yml`, `local.settings.json` |
 | `kubectl` | `kustomization.yaml`, `Chart.yaml`, `skaffold.yaml` |
 | `gh` | `.github/` directory |
+| `install` | `package.json`, `requirements.txt`, `Pipfile`, `pyproject.toml`, `Gemfile`, `Cargo.toml`, `go.mod`, `.hermit` |
 
 ## Caveats
 

@@ -1,6 +1,6 @@
 ---
 title: Guard
-description: blastshield-guard — command-level filtering that blocks mutating cloud CLI subcommands.
+description: blastshield-guard — command-level filtering that blocks mutating cloud CLI subcommands and package manager install commands.
 ---
 
 ## Overview
@@ -141,6 +141,103 @@ For AI agents, add this to their environment configuration.
 | `list`, `status`, `history` | `install`, `upgrade` |
 | `show`, `search` | `delete`, `uninstall`, `rollback` |
 | `version`, `repo list/update` | `push` |
+
+### npm
+
+| Read-Only (auto-allow) | Mutating (requires auth) |
+|------------------------|-------------------------|
+| `list`, `ls`, `view`, `info` | `install`, `ci`, `add` |
+| `outdated`, `search`, `why` | `uninstall`, `remove`, `rm`, `r` |
+| `audit`, `dedupe`, `diff` | `update`, `publish`, `deprecate` |
+| `fund`, `root`, `prefix` | `access`, `org`, `token`, `profile` |
+| `config list`, `config get` | `star`, `unstar`, `login`, `logout` |
+| `version`, `help`, `pack` | `rebuild`, `cache *` |
+
+### yarn
+
+| Read-Only (auto-allow) | Mutating (requires auth) |
+|------------------------|-------------------------|
+| `list`, `ls`, `info`, `why` | `add`, `install`, `remove` |
+| `outdated`, `search`, `version` | `upgrade *`, `up`, `dedupe *` |
+| `help`, `pack`, `dir` | `cache *`, `set *`, `config set` |
+| `config`, `plugin list` | `login`, `logout`, `publish` |
+| `npm info/tag/view` | `unlink`, `link`, `init` |
+
+### pnpm
+
+| Read-Only (auto-allow) | Mutating (requires auth) |
+|------------------------|-------------------------|
+| `list`, `ls`, `info`, `why` | `add`, `install`, `i` |
+| `outdated`, `search`, `version` | `remove`, `rm`, `update`, `upgrade` |
+| `help`, `pack`, `audit` | `import`, `store prune/add` |
+| `fund`, `root`, `config`, `get` | `login`, `logout`, `publish` |
+| `store path` | `set`, `config set`, `rebuild` |
+| | `deploy`, `fetch` |
+
+### pip
+
+| Read-Only (auto-allow) | Mutating (requires auth) |
+|------------------------|-------------------------|
+| `list`, `show`, `search` | `install`, `uninstall` |
+| `check`, `freeze` | `download`, `build` |
+| `config list`, `config get` | `wheel`, `compile` |
+| `debug`, `hash`, `inspect` | `config set`, `config edit` |
+| `version`, `help` | |
+
+### brew
+
+| Read-Only (auto-allow) | Mutating (requires auth) |
+|------------------------|-------------------------|
+| `list`, `ls`, `info` | `install`, `reinstall` |
+| `search`, `desc`, `outdated` | `uninstall`, `remove`, `rm` |
+| `doctor`, `config` | `tap *`, `untap` |
+| `leaves`, `uses`, `deps` | `link`, `unlink`, `switch` |
+| `cat`, `home`, `log` | `pin`, `unpin`, `cleanup` |
+| `options`, `version` | `migrate`, `extract` |
+
+### gem
+
+| Read-Only (auto-allow) | Mutating (requires auth) |
+|------------------------|-------------------------|
+| `list`, `search`, `query` | `install`, `uninstall` |
+| `spec`, `dependency` | `update *`, `build`, `push` |
+| `outdated`, `info`, `help` | `owner *`, `yank`, `cleanup` |
+| `environment` | `signin`, `signout` |
+| `exec` | |
+
+### cargo
+
+| Read-Only (auto-allow) | Mutating (requires auth) |
+|------------------------|-------------------------|
+| `search`, `tree`, `list` | `install`, `uninstall` |
+| `locate-project`, `metadata` | `add`, `rm`, `remove` |
+| `version`, `help` | `update`, `upgrade` |
+| `publish`, `owner` | `login`, `logout` |
+| | `publish *`, `yank` |
+
+### hermit
+
+| Read-Only (auto-allow) | Mutating (requires auth) |
+|------------------------|-------------------------|
+| `list`, `search`, `help` | `install`, `uninstall` |
+| `version`, `info`, `env` | `upgrade` |
+
+### apt
+
+| Read-Only (auto-allow) | Mutating (requires auth) |
+|------------------------|-------------------------|
+| `list`, `search`, `show` | `install`, `remove`, `purge` |
+| `cache`, `policy`, `version` | `autoremove`, `autoclean` |
+| `help`, `simulation` | `clean`, `mark`, `source` |
+
+### dnf
+
+| Read-Only (auto-allow) | Mutating (requires auth) |
+|------------------------|-------------------------|
+| `list`, `search`, `info` | `install`, `remove` |
+| `check`, `check-update` | `autoremove`, `clean` |
+| `repolist`, `repoquery` | `upgrade`, `upgrade-minimal` |
+| `version`, `help` | `distro-sync` |
 
 ## Commands
 
