@@ -42,7 +42,17 @@ aws:ec2_describe-*,ec2_list-*,s3_ls*,s3_cp*,s3_presign*,sts_get-caller-identity,
 az:list,show,version,help,account_show,account_list,find \
 kubectl:get,describe,logs,top,events,api-resources,api-versions,explain,auth_can-i,config_view,config_get-contexts,rollout_status,rollout_history,version \
 gh:list,view,repo_clone,repo_fork,repo_view,pr_list,pr_view,pr_diff,pr_checkout,issue_list,issue_view,release_list,release_view,release_download,workflow_list,workflow_view,auth_status,api_graphql,help,version \
-helm:list,status,history,show,search,version,repo_list,repo_update"
+helm:list,status,history,show,search,version,repo_list,repo_update \
+npm:list,ls,view,info,outdated,search,version,help,pack,why,explain,doctor,audit,dedupe,diff,fund,root,prefix,config_list,config_get,repo_docs \
+yarn:list,ls,info,why,outdated,search,version,help,pack,dedupe,dir,config,plugin_list,npm_info,npm_tag,npm_view \
+pnpm:list,ls,info,why,outdated,search,version,help,pack,audit,fund,root,config,get,store_path \
+pip:list,show,search,check,freeze,config_list,config_get,debug,hash,inspect,version,help \
+brew:list,ls,info,search,desc,outdated,doctor,config,leaves,uses,deps,deps_*,options,cat,home,log,tap*,update,upgrade \
+gem:list,search,query,spec,dependency,outdated,info,help,environment,update,install_*,exec \
+cargo:search,tree,list,locate-project,metadata,version,help,publish,owner, \
+hermit:list,search,help,version,info,env \
+apt:list,search,show,cache,policy,version,help,simulation \
+dnf:list,search,info,check,check-update,repolist,repoquery,version,help"
 
 # Mutating subcommands that require biometric auth
 # These are the most common dangerous patterns — anything NOT in readonly above
@@ -54,7 +64,17 @@ aws:ec2_terminate,ec2_run-,ec2_start-instances,ec2_stop-instances,ec2_reboot,s3_
 az:delete,create,update,deploy,set,remove,add,lock,unlock,scale,restart \
 kubectl:apply,create,delete,patch,scale,taint,cordon,uncordon,drain,rollout_restart,rollout_undo,exec,label,annotate,set,expose,port-forward,run,cp,debug \
 gh:delete,merge,close,edit,rename,sync,run_cancel,workflow_disable,workflow_enable \
-helm:install,upgrade,delete,rollback,uninstall,push"
+helm:install,upgrade,delete,rollback,uninstall,push \
+npm:install,i,ci,add,uninstall,remove,rm,r,update,pack_*,publish,deprecate,access,org,set,token,profile,star,unstar,login,logout,fund_*,cache_*,rebuild,rz \
+yarn:add,install,remove,upgrade-*,up,dedupe_*,cache_*,set_*,config_set,login,logout,publish,unlink,link,init \
+pnpm:add,install,i,remove,rm,update,upgrade,import,store_prune,store_add,login,logout,publish,set,config_set,rebuild,deploy,fetch \
+pip:install,uninstall,download,build,wheel,compile,config_set,config_edit \
+brew:install,reinstall,uninstall,remove,rm,tap_*,untap,link,unlink,switch,pin,unpin,cleanup,migrate,extract \
+gem:install,uninstall,update_*,build,push,owner_*,yank,cleanup,environment_*,signin,signout \
+cargo:install,uninstall,add,rm,remove,update,upgrade,login,logout,publish_*,yank \
+hermit:install,uninstall,upgrade \
+apt:install,remove,purge,autoremove,autoclean,clean,mark,source \
+dnf:install,remove,autoremove,clean,upgrade,upgrade-minimal,distro-sync"
 
 # ─── Helper Functions ─────────────────────────────────────────────────────
 
@@ -443,6 +463,26 @@ GUARDED CLIS:
                 list, view, clone, fork → allowed
     helm:       install, upgrade, delete → blocked
                 list, status, history, show → allowed
+    npm:        install, ci, add, uninstall → blocked
+                list, ls, view, info, outdated → allowed
+    yarn:       add, install, remove, upgrade → blocked
+                list, info, why, outdated → allowed
+    pnpm:       add, install, remove, update → blocked
+                list, info, why, outdated → allowed
+    pip:        install, uninstall, build → blocked
+                list, show, search, freeze → allowed
+    brew:       install, reinstall, uninstall → blocked
+                list, info, search, outdated → allowed
+    gem:        install, uninstall, build → blocked
+                list, search, query, spec → allowed
+    cargo:      install, uninstall, add, rm → blocked
+                search, tree, list, metadata → allowed
+    hermit:     install, uninstall, upgrade → blocked
+                list, search, help, info → allowed
+    apt:        install, remove, purge → blocked
+                list, search, show, cache → allowed
+    dnf:        install, remove, upgrade → blocked
+                list, search, info, check → allowed
 
 HOW IT WORKS:
     1. Install creates wrapper scripts in a directory

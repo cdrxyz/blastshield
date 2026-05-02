@@ -1,6 +1,6 @@
 ---
 title: Profiles
-description: All 8 BlastShield profiles — base, secrets, terraform, gcloud, aws, azure, kubectl, gh — enforcing read-only cloud access.
+description: All 9 BlastShield profiles — base, secrets, terraform, gcloud, aws, azure, kubectl, gh, install — enforcing read-only cloud access and blocking arbitrary dependency installation.
 ---
 
 ## Read-Only Philosophy
@@ -25,6 +25,7 @@ Profiles are [SBPL](https://reverse.put.as/wp-content/uploads/2011/09/Apple-Sand
 | `azure` | Auto | Azure credential protection, MSAL cache denial |
 | `kubectl` | Auto | Kubeconfig write protection, SA token denial |
 | `gh` | Auto | GitHub auth protection, workflow file locks |
+| `install` | Auto | Package manager install blocking, lockfile protection, global dir protection |
 
 ### Custom Profiles
 
@@ -167,6 +168,36 @@ Protects GitHub authentication — prevents destructive repo operations and CI m
 | CODEOWNERS writes | `gh secret set` |
 
 **Auto-detection trigger:** `.github/` directory
+
+## install (Package Managers)
+
+Prevents AI agents from installing new dependencies without human review. Adding packages introduces supply chain risk, license obligations, and runtime bloat. Both the command-argument level (guard) and the filesystem level (sandbox profile) are protected.
+
+| Blocked | Allowed |
+|---------|---------|
+| `npm install / ci / add` | `npm list / ls / view / info / outdated` |
+| `yarn add / install / remove` | `yarn list / info / why / outdated` |
+| `pnpm add / install / remove` | `pnpm list / info / why / outdated` |
+| `pip install / uninstall / build` | `pip list / show / freeze / check` |
+| `brew install / reinstall / uninstall` | `brew list / info / search / outdated` |
+| `gem install / uninstall / build` | `gem list / search / spec / query` |
+| `cargo install / add / rm` | `cargo search / tree / list / metadata` |
+| `hermit install / uninstall / upgrade` | `hermit list / search / help / info` |
+| `apt install / remove / purge` | `apt list / search / show / cache` |
+| `dnf install / remove / upgrade` | `dnf list / search / info / check` |
+| Global package directories (writes) | Global package directories (reads) |
+| Lockfile writes | Lockfile reads |
+
+**Auto-detection trigger:** `package.json`, `requirements.txt`, `Pipfile`, `pyproject.toml`, `Gemfile`, `Cargo.toml`, `go.mod`, `.hermit`
+
+**Filesystem protections:**
+- Denies writes to global npm/yarn/pnpm directories
+- Denies writes to pip cache and user site-packages
+- Denies writes to Homebrew Cellar, Caskroom, and Taps
+- Denies writes to gem, cargo, and hermit install directories
+- Denies writes to lockfiles (`package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `Gemfile.lock`, `Cargo.lock`, `poetry.lock`, `uv.lock`)
+
+**Note:** Local installs (e.g., `npm install` into `node_modules/`) are blocked by the guard but not by the sandbox profile — project writes are allowed by `base.sb`. The guard is the primary defense for local installs; this profile provides defense-in-depth for global/system installs.
 
 ---
 

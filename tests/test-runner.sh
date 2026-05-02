@@ -135,7 +135,7 @@ else
 fi
 
 # Test: profile resolution for each built-in profile
-for profile_name in base secrets terraform gcloud aws azure kubectl gh; do
+for profile_name in base secrets terraform gcloud aws azure kubectl gh install; do
     # Test that resolve_profile function can find each profile
     profile_path="$PROFILES_DIR/${profile_name}.sb"
     if [[ -f "$profile_path" ]]; then
@@ -296,6 +296,169 @@ if "$GUARD" check aws s3 ls 2>&1; then
     pass "blastshield-guard check aws s3 ls: correctly allowed (read-only)"
 else
     fail "blastshield-guard check aws s3 ls: should be allowed"
+fi
+
+# ─── Install Command Guard Tests ──────────────────────────────────────
+
+# Test: guard check — npm install blocked
+if "$GUARD" check npm install 2>&1; then
+    fail "blastshield-guard check npm install: should be blocked"
+else
+    pass "blastshield-guard check npm install: correctly blocked"
+fi
+
+# Test: guard check — npm ci blocked
+if "$GUARD" check npm ci 2>&1; then
+    fail "blastshield-guard check npm ci: should be blocked"
+else
+    pass "blastshield-guard check npm ci: correctly blocked"
+fi
+
+# Test: guard check — npm list allowed (read-only)
+if "$GUARD" check npm list 2>&1; then
+    pass "blastshield-guard check npm list: correctly allowed (read-only)"
+else
+    fail "blastshield-guard check npm list: should be allowed"
+fi
+
+# Test: guard check — npm outdated allowed (read-only)
+if "$GUARD" check npm outdated 2>&1; then
+    pass "blastshield-guard check npm outdated: correctly allowed (read-only)"
+else
+    fail "blastshield-guard check npm outdated: should be allowed"
+fi
+
+# Test: guard check — yarn add blocked
+if "$GUARD" check yarn add 2>&1; then
+    fail "blastshield-guard check yarn add: should be blocked"
+else
+    pass "blastshield-guard check yarn add: correctly blocked"
+fi
+
+# Test: guard check — yarn list allowed (read-only)
+if "$GUARD" check yarn list 2>&1; then
+    pass "blastshield-guard check yarn list: correctly allowed (read-only)"
+else
+    fail "blastshield-guard check yarn list: should be allowed"
+fi
+
+# Test: guard check — pnpm add blocked
+if "$GUARD" check pnpm add 2>&1; then
+    fail "blastshield-guard check pnpm add: should be blocked"
+else
+    pass "blastshield-guard check pnpm add: correctly blocked"
+fi
+
+# Test: guard check — pnpm list allowed (read-only)
+if "$GUARD" check pnpm list 2>&1; then
+    pass "blastshield-guard check pnpm list: correctly allowed (read-only)"
+else
+    fail "blastshield-guard check pnpm list: should be allowed"
+fi
+
+# Test: guard check — pip install blocked
+if "$GUARD" check pip install 2>&1; then
+    fail "blastshield-guard check pip install: should be blocked"
+else
+    pass "blastshield-guard check pip install: correctly blocked"
+fi
+
+# Test: guard check — pip list allowed (read-only)
+if "$GUARD" check pip list 2>&1; then
+    pass "blastshield-guard check pip list: correctly allowed (read-only)"
+else
+    fail "blastshield-guard check pip list: should be allowed"
+fi
+
+# Test: guard check — pip uninstall blocked
+if "$GUARD" check pip uninstall 2>&1; then
+    fail "blastshield-guard check pip uninstall: should be blocked"
+else
+    pass "blastshield-guard check pip uninstall: correctly blocked"
+fi
+
+# Test: guard check — brew install blocked
+if "$GUARD" check brew install 2>&1; then
+    fail "blastshield-guard check brew install: should be blocked"
+else
+    pass "blastshield-guard check brew install: correctly blocked"
+fi
+
+# Test: guard check — brew list allowed (read-only)
+if "$GUARD" check brew list 2>&1; then
+    pass "blastshield-guard check brew list: correctly allowed (read-only)"
+else
+    fail "blastshield-guard check brew list: should be allowed"
+fi
+
+# Test: guard check — gem install blocked
+if "$GUARD" check gem install 2>&1; then
+    fail "blastshield-guard check gem install: should be blocked"
+else
+    pass "blastshield-guard check gem install: correctly blocked"
+fi
+
+# Test: guard check — gem list allowed (read-only)
+if "$GUARD" check gem list 2>&1; then
+    pass "blastshield-guard check gem list: correctly allowed (read-only)"
+else
+    fail "blastshield-guard check gem list: should be allowed"
+fi
+
+# Test: guard check — cargo install blocked
+if "$GUARD" check cargo install 2>&1; then
+    fail "blastshield-guard check cargo install: should be blocked"
+else
+    pass "blastshield-guard check cargo install: correctly blocked"
+fi
+
+# Test: guard check — cargo search allowed (read-only)
+if "$GUARD" check cargo search 2>&1; then
+    pass "blastshield-guard check cargo search: correctly allowed (read-only)"
+else
+    fail "blastshield-guard check cargo search: should be allowed"
+fi
+
+# Test: guard check — hermit install blocked
+if "$GUARD" check hermit install 2>&1; then
+    fail "blastshield-guard check hermit install: should be blocked"
+else
+    pass "blastshield-guard check hermit install: correctly blocked"
+fi
+
+# Test: guard check — hermit list allowed (read-only)
+if "$GUARD" check hermit list 2>&1; then
+    pass "blastshield-guard check hermit list: correctly allowed (read-only)"
+else
+    fail "blastshield-guard check hermit list: should be allowed"
+fi
+
+# Test: guard check — apt install blocked
+if "$GUARD" check apt install 2>&1; then
+    fail "blastshield-guard check apt install: should be blocked"
+else
+    pass "blastshield-guard check apt install: correctly blocked"
+fi
+
+# Test: guard check — dnf install blocked
+if "$GUARD" check dnf install 2>&1; then
+    fail "blastshield-guard check dnf install: should be blocked"
+else
+    pass "blastshield-guard check dnf install: correctly blocked"
+fi
+
+# Test: guard check — npm with flags (npm install -g react) blocked
+if "$GUARD" check npm install -g react 2>&1; then
+    fail "blastshield-guard check npm install -g react: should be blocked"
+else
+    pass "blastshield-guard check npm install -g react: correctly blocked"
+fi
+
+# Test: guard check — npm shorthand 'i' blocked
+if "$GUARD" check npm i 2>&1; then
+    fail "blastshield-guard check npm i: should be blocked (shorthand for install)"
+else
+    pass "blastshield-guard check npm i: correctly blocked (shorthand for install)"
 fi
 
 # ─── Integration Tests ───────────────────────────────────────────────────

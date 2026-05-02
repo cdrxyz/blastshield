@@ -34,7 +34,7 @@ fi
 DEFAULT_PROFILES=("base" "secrets")
 
 # Cloud profiles: loaded when cloud CLIs are detected or specified
-CLOUD_PROFILES=("terraform" "gcloud" "aws" "azure" "kubectl" "gh")
+CLOUD_PROFILES=("terraform" "gcloud" "aws" "azure" "kubectl" "gh" "install")
 
 # ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -87,7 +87,7 @@ resolve_profile() {
 # Detect which cloud CLIs are available on this system
 detect_cloud_clis() {
     local detected=()
-    for cli in terraform gcloud aws az kubectl gh; do
+    for cli in terraform gcloud aws az kubectl gh npm yarn pnpm pip brew gem cargo hermit; do
         if command -v "$cli" &>/dev/null; then
             detected+=("$cli")
         fi
@@ -128,6 +128,11 @@ detect_cloud_profiles() {
     # GitHub: .github/ directory
     if [[ -d "$dir/.github" ]]; then
         profiles+=("gh")
+    fi
+
+    # Install: package manifests indicate dependency management
+    if find "$dir" -maxdepth 2 \( -name "package.json" -o -name "requirements.txt" -o -name "Pipfile" -o -name "pyproject.toml" -o -name "Gemfile" -o -name "Cargo.toml" -o -name "go.mod" -o -name ".hermit" \) -print -quit 2>/dev/null | grep -q .; then
+        profiles+=("install")
     fi
 
     echo "${profiles[*]:-}"
@@ -359,6 +364,7 @@ PROFILES:
     Profiles are loaded in order. Later profiles can narrow earlier ones.
     Default profiles (always loaded): base, secrets
     Cloud profiles (auto-detected or explicit): terraform, gcloud, aws, azure, kubectl, gh
+    Install profiles (auto-detected): install
 
     Compose with existing tools:
     blastshield -p terraform -- safehouse claude --dangerously-skip-permissions
