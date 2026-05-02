@@ -1,0 +1,123 @@
+;; blastshield install profile — block arbitrary dependency installation
+;;
+;; PHILOSOPHY: AI agents should not install new dependencies without human
+;; review. Adding packages introduces supply chain risk, license obligations,
+;; and runtime bloat. This profile protects global/package directories from
+;; writes so that `npm install -g`, `pip install`, `brew install`, etc. are
+;; blocked at the filesystem level even if the guard wrapper is bypassed.
+;;
+;; BLOCKED operations (via filesystem protection + guard):
+;;   npm install / npm ci / npm add             — install Node.js packages
+;;   yarn add / yarn install                    — install Yarn packages
+;;   pnpm add / pnpm install                    — install pnpm packages
+;;   pip install / pip wheel                    — install Python packages
+;;   brew install / brew tap                    — install Homebrew packages
+;;   gem install                                — install Ruby gems
+;;   cargo install                              — install Rust crates
+;;   hermit install / hermit upgrade            — install Hermit packages
+;;   apt install / dnf install                  — install system packages
+;;
+;; ALLOWED operations:
+;;   npm list / npm view / npm outdated         — inspect packages
+;;   pip list / pip show / pip freeze           — inspect packages
+;;   brew list / brew info / brew search        — inspect packages
+;;   gem list / gem search / gem spec           — inspect packages
+;;   cargo search / cargo tree / cargo list     — inspect packages
+;;   hermit list / hermit info                  — inspect packages
+;;
+;; NOTE: `npm install` (local, into project node_modules/) is blocked by the
+;; guard but NOT by the filesystem profile — project writes are allowed by
+;; base.sb. The guard is the primary defense for local installs. This profile
+;; provides defense-in-depth for global/system installs.
+;;
+;; Parameters: _HOME, _PROJECT_DIR
+
+(version 1)
+
+;; ═══ Node.js / npm / yarn / pnpm — Global Package Protection ═══
+
+;; Deny writing to global npm directories (npm install -g, npm root -g)
+(deny file-write* (subpath "_HOME/.npm-global"))
+(deny file-write* (subpath "_HOME/.npm"))
+(deny file-write* (subpath "_HOME/.node_modules"))
+(deny file-write* (subpath "_HOME/.node-gyp"))
+
+;; Deny writing to global node_modules in common locations
+(deny file-write* (regex #"^/usr/local/lib/node_modules"))
+(deny file-write* (subpath "/usr/local/lib/node_modules"))
+
+;; Deny writing to yarn global cache and global install dir
+(deny file-write* (subpath "_HOME/.yarn/global"))
+(deny file-write* (subpath "_HOME/.yarn/cache"))
+
+;; Deny writing to pnpm global store and global dir
+(deny file-write* (subpath "_HOME/.local/share/pnpm"))
+(deny file-write* (subpath "_HOME/Library/pnpm"))
+
+;; ═══ Python / pip — Global Package Protection ═══
+
+;; Deny writing to user site-packages (pip install --user)
+(deny file-write* (subpath "_HOME/.local/lib"))
+
+;; Deny writing to pip cache (downloaded wheels/sdists)
+(deny file-write* (subpath "_HOME/.cache/pip"))
+(deny file-write* (subpath "_HOME/.pip"))
+
+;; Deny writing to virtualenv / conda global dirs
+(deny file-write* (subpath "_HOME/.conda"))
+(deny file-write* (subpath "_HOME/.virtualenvs"))
+(deny file-write* (subpath "_HOME/anaconda3"))
+(deny file-write* (subpath "_HOME/miniconda3"))
+
+;; ═══ Homebrew — Package Protection ═══
+
+;; Deny writing to Homebrew install directories
+(deny file-write* (subpath "/usr/local/Cellar"))
+(deny file-write* (subpath "/opt/homebrew/Cellar"))
+(deny file-write* (subpath "/usr/local/Caskroom"))
+(deny file-write* (subpath "/opt/homebrew/Caskroom"))
+
+;; Deny writing to Homebrew tap repos
+(deny file-write* (subpath "/usr/local/Homebrew/Library/Taps"))
+(deny file-write* (subpath "/opt/homebrew/Library/Taps"))
+
+;; Deny writing to Homebrew cache
+(deny file-write* (subpath "_HOME/Library/Caches/Homebrew"))
+
+;; ═══ Ruby / gem — Global Gem Protection ═══
+
+;; Deny writing to gem install directories
+(deny file-write* (subpath "_HOME/.gem"))
+(deny file-write* (subpath "_HOME/.rbenv"))
+(deny file-write* (subpath "_HOME/.rvm"))
+
+;; ═══ Rust / cargo — Global Crate Protection ═══
+
+;; Deny writing to cargo install directory
+(deny file-write* (subpath "_HOME/.cargo/bin"))
+(deny file-write* (subpath "_HOME/.cargo/registry"))
+
+;; ═══ Hermit — Package Protection ═══
+
+;; Deny writing to Hermit package cache
+(deny file-write* (subpath "_HOME/.cache/hermit"))
+
+;; ═══ System Package Managers ═══
+
+;; Deny writing to system package directories (apt, dnf, etc.)
+;; These are typically root-owned but defend against sudo scenarios
+(deny file-write* (subpath "/var/cache/apt"))
+(deny file-write* (subpath "/var/lib/apt"))
+(deny file-write* (subpath "/var/cache/dnf"))
+(deny file-write* (subpath "/var/lib/rpm"))
+
+;; ═══ Lockfile Protection ═══
+;; Prevent agents from modifying lockfiles to inject dependencies
+
+(deny file-write* (literal "_PROJECT_DIR/package-lock.json"))
+(deny file-write* (literal "_PROJECT_DIR/yarn.lock"))
+(deny file-write* (literal "_PROJECT_DIR/pnpm-lock.yaml"))
+(deny file-write* (literal "_PROJECT_DIR/Gemfile.lock"))
+(deny file-write* (literal "_PROJECT_DIR/Cargo.lock"))
+(deny file-write* (literal "_PROJECT_DIR/poetry.lock"))
+(deny file-write* (literal "_PROJECT_DIR/uv.lock"))
