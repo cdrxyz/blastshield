@@ -251,18 +251,21 @@ story.append(Spacer(1, 36))
 story.append(Paragraph("Abstract", abstract_label))
 story.append(Paragraph(
     "AI coding agents now operate with near-unrestricted access to developer machines, including the ability to execute "
-    "destructive cloud infrastructure commands. Existing sandboxing solutions — both agent-built-in and OS-level — fail to address "
-    "this threat model: they protect files and secrets but cannot distinguish <i>terraform destroy</i> from <i>terraform plan</i>. "
+    "destructive cloud infrastructure commands and install arbitrary dependencies. Existing sandboxing solutions — both "
+    "agent-built-in and OS-level — fail to address this threat model: they protect files and secrets but cannot distinguish "
+    "<i>terraform destroy</i> from <i>terraform plan</i>, or <i>npm install</i> from <i>npm list</i>. "
     "This whitepaper presents BlastShield, a two-layer defense architecture for macOS that combines kernel-level filesystem "
     "sandboxing (via Apple Seatbelt) with command-argument filtering (via biometric-authenticated PATH wrappers). We analyze "
-    "why existing approaches are insufficient, describe the unique design decisions behind BlastShield, catalog remaining "
+    "why existing approaches are insufficient, describe the unique design decisions behind BlastShield — including protection "
+    "against both cloud CLI destructive commands and package manager install commands — catalog remaining "
     "vulnerabilities, and identify areas for further research and empirical verification.",
     abstract_style,
 ))
 story.append(Spacer(1, 12))
 story.append(Paragraph(
     "<b>Keywords:</b> AI agent safety, cloud infrastructure protection, macOS sandbox-exec, Seatbelt, SBPL, "
-    "command-argument filtering, defense in depth, Terraform, Kubernetes, AWS, GCP, Azure",
+    "command-argument filtering, defense in depth, supply chain protection, Terraform, Kubernetes, AWS, GCP, Azure, "
+    "npm, pip, brew, package manager",
     ParagraphStyle("Keywords", parent=abstract_style, fontName="Times-Roman", fontSize=9, alignment=TA_LEFT),
 ))
 
@@ -282,6 +285,12 @@ story.append(Paragraph(
     "or <font face='Courier' size='9'>kubectl delete namespace</font> issued by an autonomous agent — whether through "
     "misinterpretation, prompt injection, or hallucination — can cause irreversible damage. The blast radius is asymmetric: "
     "hours of human review versus seconds of automated execution.", body_style))
+story.append(Paragraph(
+    "Nor is the risk limited to cloud infrastructure. An autonomous agent can silently install new dependencies — "
+    "<font face='Courier' size='9'>npm install</font>, <font face='Courier' size='9'>pip install</font>, "
+    "<font face='Courier' size='9'>brew install</font>, <font face='Courier' size='9'>cargo add</font> — in seconds, "
+    "introducing unvetted code into a project. A single malicious package added without review can compromise supply chain "
+    "integrity, introduce vulnerabilities, or create subtle behavioral changes that are difficult to detect after the fact.", body_style))
 
 # 2. Why Existing Solutions Don't Work
 story.append(Paragraph("2. Why Existing Solutions Don't Work", h1_style))
@@ -325,6 +334,7 @@ for num, text in [
     ("2", "<b>No credential-path blocking.</b> Protecting <font face='Courier' size='9'>~/.ssh/</font> and <font face='Courier' size='9'>~/.bashrc</font> is necessary but not sufficient. Cloud CLIs authenticate through many paths — AWS credentials, Azure config, GCloud config, application-default credentials, SSO token caches, MSAL caches, Keychain entries. Existing tools don't systematically enumerate and block these credential paths for each cloud provider."),
     ("3", "<b>No state file protection.</b> Terraform state (<i>.tfstate</i>), Helm chart locks, CDK/SAM state — these are the objects that destructive operations mutate. Existing sandboxes don't protect them."),
     ("4", "<b>No command-argument filtering.</b> <font face='Courier' size='9'>sandbox-exec</font> operates at the file/process level. It cannot see command arguments. No existing tool addresses this gap with a second layer that filters by subcommand."),
+    ("5", "<b>No install command blocking.</b> None of them prevent an agent from running <font face='Courier' size='9'>npm install</font>, <font face='Courier' size='9'>pip install</font>, <font face='Courier' size='9'>brew install</font>, or equivalent package manager commands. An agent can introduce arbitrary dependencies into a project in seconds — dependencies that may contain malicious code, introduce supply chain vulnerabilities, or subtly alter project behavior. Existing sandbox tools treat package managers as ordinary binaries, with no awareness that <i>install</i> subcommands are categorically different from <i>list</i> or <i>show</i>."),
 ]:
     story.append(Paragraph(text, numbered_style, bulletText=f"{num}."))
 
@@ -350,8 +360,9 @@ story.append(Paragraph(
 for bullet in [
     "<b>Block credential paths by provider.</b> Each cloud provider profile enumerates the specific credential, token cache, and authentication file paths for that provider. The agent process physically cannot read these files — the kernel enforces this regardless of what the agent tries.",
     "<b>Protect state files.</b> Terraform state, Helm chart locks, and backend configurations are write-protected. Even if the agent somehow authenticates, it cannot modify state.",
+    "<b>Block global package directories and lockfiles.</b> The install profile denies writes to global package manager directories (node_modules globals, Homebrew Cellar, pip global site-packages, gem directories, Cargo registry, Hermit packages, apt/dnf package caches) and project lockfiles (package-lock.json, yarn.lock, pnpm-lock.yaml, Pipfile.lock, Gemfile.lock, Cargo.lock). The agent cannot install packages at the filesystem level.",
     "<b>Compose by intersection.</b> Profiles combine by intersecting their deny rules. Loading more profiles can only make the sandbox <i>more restrictive</i>, never less. This is a critical safety property — there's no accidental loosening.",
-    "<b>Auto-detect from project.</b> BlastShield scans the project directory for indicator files (<font face='Courier' size='9'>*.tf</font>, <font face='Courier' size='9'>Chart.yaml</font>, <font face='Courier' size='9'>cdk.json</font>, etc.) and automatically loads the appropriate profiles. Zero configuration for the common case.",
+    "<b>Auto-detect from project.</b> BlastShield scans the project directory for indicator files (<font face='Courier' size='9'>*.tf</font>, <font face='Courier' size='9'>Chart.yaml</font>, <font face='Courier' size='9'>cdk.json</font>, <font face='Courier' size='9'>package.json</font>, <font face='Courier' size='9'>requirements.txt</font>, <font face='Courier' size='9'>Cargo.toml</font>, etc.) and automatically loads the appropriate profiles. Zero configuration for the common case.",
 ]:
     story.append(Paragraph(bullet, bullet_style, bulletText="•"))
 
@@ -362,6 +373,7 @@ story.append(Paragraph(
 for bullet in [
     "<b>PATH wrappers.</b> <font face='Courier' size='9'>blastshield-guard install</font> creates wrapper scripts that intercept cloud CLI invocations before they reach the real binary.",
     "<b>Read-only by default.</b> Each wrapper classifies subcommands as read-only or mutating. Read-only commands (<font face='Courier' size='9'>plan</font>, <font face='Courier' size='9'>list</font>, <font face='Courier' size='9'>describe</font>, <font face='Courier' size='9'>get</font>) pass through immediately. Everything else requires authentication.",
+    "<b>Install commands blocked.</b> Package manager install subcommands (<font face='Courier' size='9'>npm install</font>, <font face='Courier' size='9'>pip install</font>, <font face='Courier' size='9'>brew install</font>, <font face='Courier' size='9'>yarn add</font>, <font face='Courier' size='9'>pnpm add</font>, <font face='Courier' size='9'>gem install</font>, <font face='Courier' size='9'>cargo install</font>, <font face='Courier' size='9'>hermit install</font>, <font face='Courier' size='9'>apt install</font>, <font face='Courier' size='9'>dnf install</font>) are classified as mutating and require authentication. Read-only package operations (<font face='Courier' size='9'>npm list</font>, <font face='Courier' size='9'>pip show</font>, <font face='Courier' size='9'>brew info</font>, <font face='Courier' size='9'>cargo search</font>) pass through. This prevents the agent from arbitrarily adding dependencies without human review.",
     "<b>Biometric/password gate.</b> Mutating commands require <font face='Courier' size='9'>sudo</font> authentication, which on MacBooks triggers Touch ID or a password prompt. The agent cannot satisfy this — it requires a human.",
     "<b>Fresh auth each time.</b> <font face='Courier' size='9'>sudo -k</font> invalidates the timestamp before each check, ensuring that a previous successful authentication doesn't carry over.",
 ]:
@@ -377,10 +389,20 @@ story.append(make_table(
         ["Agent runs terraform destroy", "❌ Same binary as plan", "✅ Intercepted"],
         ["Agent uses full path to terraform destroy", "❌ Same binary", "❌ Bypassed"],
         ["Agent has credentials in env vars", "❌ Not file-based", "✅ Intercepted"],
+        ["Agent runs npm install into global node_modules", "✅ Blocked (write denied)", "✅ Intercepted"],
+        ["Agent runs pip install into project venv", "❌ Project writes allowed", "✅ Intercepted"],
+        ["Agent writes package-lock.json directly", "✅ Blocked (lockfile write denied)", "❌ Not a CLI invocation"],
+        ["Agent runs npm install via full path", "❌ Same binary", "❌ Bypassed, but lockfile blocked"],
     ],
     [2.8 * inch, 1.6 * inch, 1.6 * inch],
 ))
 story.append(Paragraph("Table 2: Layer complementarity across attack scenarios.", caption_style))
+story.append(Paragraph(
+    "The layers are complementary. Layer 1 is the hard boundary that cannot be bypassed by clever command invocation. "
+    "Layer 2 catches what Layer 1 cannot see — the <i>intent</i> of the command. For install protection specifically, "
+    "Layer 1 prevents filesystem-level writes to global package directories and lockfiles, while Layer 2 catches "
+    "project-local installs (e.g., <font face='Courier' size='9'>npm install</font> into <font face='Courier' size='9'>node_modules/</font>) "
+    "that Layer 1 must allow because the base profile permits project writes.", body_style))
 
 # 4. Unique Design Decisions
 story.append(Paragraph("4. Unique Design Decisions", h1_style))
@@ -391,6 +413,7 @@ decisions = [
     ("4.3 Human-in-the-Loop for Mutations", "The guard layer enforces a principle: <b>the agent plans, you execute.</b> An agent can <font face='Courier' size='9'>terraform plan</font> and <font face='Courier' size='9'>aws describe-</font> all day. The moment it tries to mutate infrastructure, a human must be present. This aligns the security model with how infrastructure changes should work regardless of AI involvement."),
     ("4.4 Authentication as Authorization", "Rather than building a custom authorization system, BlastShield uses <font face='Courier' size='9'>sudo</font> as its authentication gate. This leverages macOS's existing biometric infrastructure (Touch ID) and PAM configuration. No new accounts, no new tokens, no new attack surface. The user's existing macOS authentication is the authorization."),
     ("4.5 Defense in Depth by Default", "The recommended setup includes both layers. But even Layer 1 alone provides meaningful protection — it blocks the credential reads that would enable destructive operations in the first place. The guard layer is the additional safety net for credentials that enter the process through other means (environment variables, credential helpers, Keychain)."),
+    ("4.6 Supply Chain Protection as a First-Class Concern", "BlastShield extends the \"agent plans, you execute\" principle beyond infrastructure to dependency management. The install profile treats <font face='Courier' size='9'>npm install</font> with the same suspicion as <font face='Courier' size='9'>terraform apply</font> — both introduce changes that should be reviewed by a human before execution. This reflects a growing recognition that supply chain attacks through compromised packages are as dangerous as direct infrastructure destruction. The guard's read-only-by-default posture means agents can inspect existing dependencies (<font face='Courier' size='9'>npm list</font>, <font face='Courier' size='9'>pip show</font>, <font face='Courier' size='9'>brew info</font>) but cannot add new ones without human approval."),
 ]
 for heading, text in decisions:
     story.append(Paragraph(heading, h2_style))
@@ -434,6 +457,10 @@ vulns = [
      "A malicious input (file content, web page, API response) could cause the agent to attempt destructive operations. BlastShield mitigates the <i>execution</i> of such operations but cannot prevent the <i>attempt</i>.",
      "Layers 1 and 2 together make execution unlikely but not impossible (see credential exfiltration and PATH bypass above).",
      "Integration with agent-level content filtering or guardrail systems that detect and reject prompt injection attempts before they reach the agent's reasoning."),
+    ("5.9 Package Manager Evasion Techniques", "Medium",
+     "The install guard protects against standard package manager invocations, but several bypass vectors exist. Agents can invoke package managers through scripting language package managers not yet guarded (e.g., <font face='Courier' size='9'>luarocks install</font>, <font face='Courier' size='9'>nix-env -i</font>, <font face='Courier' size='9'>conda install</font>). They can also install packages by downloading and executing install scripts directly (<font face='Courier' size='9'>curl | bash</font>), or by modifying configuration files that trigger package installation on the next build.",
+     "Layer 1 blocks writes to lockfiles and global package directories, catching many bypass attempts. The guard covers the most common package managers (npm, yarn, pnpm, pip, brew, gem, cargo, hermit, apt, dnf). Less common managers can be added as demand warrants.",
+     "Heuristic detection of install-like behavior regardless of the specific tool used — for example, detecting writes to known package directories even when the writing process is not a recognized package manager binary."),
 ]
 
 for heading, severity, description, mitigation, research in vulns:
@@ -475,6 +502,12 @@ research_areas = [
     ("6.6 Agent Telemetry and Anomaly Detection", [
         "Monitoring agent behavior inside the sandbox could provide early warning of attempted breaches: log sandbox violations (already supported via <font face='Courier' size='9'>--violations</font>), track unusual command patterns (e.g., an agent attempting multiple destructive commands in sequence), and alert on credential access attempts that were blocked. This telemetry could feed into a real-time risk scoring system that escalates to the user before a breach attempt succeeds.",
     ]),
+    ("6.7 Supply Chain Attack Surface Analysis", [
+        "The install profile protects against the most common package managers, but the supply chain attack surface is broader than direct package installation. Further research is needed on:",
+        "<b>Transitive dependency risk.</b> An agent that modifies <font face='Courier' size='9'>package.json</font> or <font face='Courier' size='9'>requirements.txt</font> directly (adding entries rather than running <font face='Courier' size='9'>npm install</font>) introduces dependencies that will be installed on the next <font face='Courier' size='9'>npm ci</font> or <font face='Courier' size='9'>pip install -r</font>. BlastShield's lockfile protection catches this in projects that commit lockfiles, but projects without lockfiles remain vulnerable.",
+        "<b>Language-specific package managers.</b> The current guard covers 10 package managers, but many more exist (conda, nix, guix, luarocks, cpanm, cabal, stack, opam, vcpkg, nuget). A systematic survey of which package managers AI agents commonly invoke would help prioritize additional guard coverage.",
+        "<b>Install script detection.</b> Many packages recommend installation via <font face='Courier' size='9'>curl | bash</font> or <font face='Courier' size='9'>wget | sh</font> patterns. Detecting and blocking these patterns requires content-level analysis (reading the command arguments), which is within the guard's capability but not yet implemented.",
+    ]),
 ]
 
 for heading, items in research_areas:
@@ -486,17 +519,20 @@ for heading, items in research_areas:
 story.append(Paragraph("7. Conclusion", h1_style))
 story.append(Paragraph(
     "BlastShield addresses a specific, high-severity gap in AI agent safety: preventing autonomous destruction of cloud "
-    "infrastructure. It does this through a two-layer architecture — kernel-level file sandboxing plus command-argument "
-    "filtering — that existing tools do not provide.", body_style))
+    "infrastructure and arbitrary installation of unvetted dependencies. It does this through a two-layer architecture — "
+    "kernel-level file sandboxing plus command-argument filtering — that existing tools do not provide.", body_style))
 story.append(Paragraph(
     "The approach is pragmatic: it uses macOS's built-in sandboxing primitives rather than building new infrastructure, "
     "it composes with existing tools rather than replacing them, and it acknowledges its own limitations rather than "
-    "claiming false security.", body_style))
+    "claiming false security. By extending protection from cloud CLI destructive commands to package manager install "
+    "commands, BlastShield recognizes that supply chain integrity is as critical as infrastructure integrity in an "
+    "agentic engineering workflow.", body_style))
 story.append(Paragraph(
-    "The remaining vulnerabilities are real. Credential exfiltration via network, Keychain access, and "
-    "<font face='Courier' size='9'>sandbox-exec</font> deprecation are open problems that require further research. "
-    "But the current state — AI agents with unrestricted access to production cloud credentials — is strictly worse. "
-    "BlastShield makes the threat model narrower and the blast radius smaller. That's worth something.", body_style))
+    "The remaining vulnerabilities are real. Credential exfiltration via network, Keychain access, "
+    "<font face='Courier' size='9'>sandbox-exec</font> deprecation, and package manager evasion techniques are open "
+    "problems that require further research. But the current state — AI agents with unrestricted access to production "
+    "cloud credentials and package managers — is strictly worse. BlastShield makes the threat model narrower and the "
+    "blast radius smaller. That's worth something.", body_style))
 
 # References
 story.append(Paragraph("References", h1_style))
