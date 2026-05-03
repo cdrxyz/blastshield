@@ -15,7 +15,7 @@ hero:
 
 ## Read-Only by Default
 
-BlastShield enforces a default-deny posture for cloud CLIs. Read operations such as `list`, `describe`, `get`, and `plan` pass through automatically. Mutating commands such as `terraform apply` and `gcloud deploy` are blocked or forced back to the user.
+BlastShield enforces a default-deny posture for cloud CLIs and package managers. Read operations such as `list`, `describe`, `get`, and `plan` pass through automatically. Mutating commands such as `terraform apply`, `gcloud deploy`, `npm install`, and `pip install` are blocked or forced back to the user.
 
 The agent inspects and plans. You execute.
 
@@ -27,7 +27,7 @@ Kernel-level filesystem restrictions keep agents away from credential files, sta
 
 ### Layer 2: command-argument guard
 
-Runtime guard wrappers intercept dangerous subcommands before they reach Terraform, gcloud, kubectl, and other CLIs.
+Runtime guard wrappers intercept dangerous subcommands before they reach Terraform, gcloud, kubectl, npm, pip, and other CLIs.
 
 ## Quick Start
 

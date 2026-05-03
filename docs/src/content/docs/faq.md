@@ -96,6 +96,14 @@ Yes, if it knows to use full paths. Running `/usr/local/bin/terraform destroy` b
 2. **The guard is a speed bump** — It catches accidental and casual misuse, and makes deliberate misuse require more effort
 3. **Use both layers** — Together they provide defense in depth
 
+### Does BlastShield block package manager install commands?
+
+Yes. The install profile and guard protect against 10 package managers: npm, yarn, pnpm, pip, brew, gem, cargo, hermit, apt, and dnf. Install/add subcommands are classified as mutating and require authentication. Read-only operations (`npm list`, `pip show`, `brew info`, `cargo search`, etc.) pass through immediately.
+
+The sandbox profile also blocks writes to global package directories and project lockfiles at the kernel level, so even bypassing the PATH wrapper won't allow global installs.
+
+**Note:** Project-local installs (e.g., `pip install` into a venv under the project directory) are only caught by the guard, since the base profile allows project writes. Use both layers for full protection.
+
 ### Can I add custom destructive patterns?
 
 Not currently through a configuration file. The destructive command definitions are in the `blastshield-guard` script in the `DESTRUCTIVE_COMMANDS` associative array. You can modify them directly, or create custom wrappers in your guard directory.
