@@ -1,62 +1,14 @@
 # BlastShield 🔒
 
-> [!WARNING]
-> BlastShield is still in beta and may contain bugs. Validate it in a non-production environment before depending on it for safety-critical workflows.
-
 **Sandbox AI coding agents with kernel-level protection against destructive cloud CLI commands.**
 
 Uses macOS `sandbox-exec` (Apple Seatbelt) to enforce filesystem restrictions that prevent AI agents from executing destructive operations — `terraform destroy`, `gcloud compute instances delete`, `aws s3 rb`, `az group delete`, `kubectl delete namespace` — even when running with `--dangerously-skip-permissions` or equivalent unrestricted modes.
 
-## Why This Exists
-
-Existing macOS sandbox tools for AI agents ([sandvault](https://github.com/webcoyote/sandvault), [agent-safehouse](https://github.com/eugene1g/agent-safehouse), [agent-seatbelt](https://github.com/CJHwong/agent-seatbelt)) focus on protecting secrets and dotfiles. **None of them address cloud CLI destructive commands.** An agent with access to your cloud credentials can delete your infrastructure in seconds. BlastShield fills that gap.
-
-Built-in agent sandboxes (Claude's `/sandbox`, Codex's approval policies) only gate their own tools. An agent that shells out via Bash or Python bypasses all of it. OS-level enforcement can't be bypassed — the kernel doesn't care what the agent thinks it's allowed to do.
-
-## Two Layers of Defense
-
-### Layer 1: `blastshield` — Filesystem/Process Sandbox (sandbox-exec)
-
-Kernel-level. Blocks access to credential files, state files, and protected paths. The agent process physically cannot read or write the files it would need to authenticate destructive operations.
-
-```bash
-# Run Claude Code with all auto-detected cloud protections
-blastshield claude --dangerously-skip-permissions
-
-# Run Codex with full auto-approve
-blastshield codex --full-auto
-
-# Run OpenCode with explicit profiles
-blastshield -p terraform -p aws opencode
-
-# Run any command
-blastshield -p kubectl bash
-```
-
-### Layer 2: `blastshield-guard` — Command-Argument Filter
-
-`sandbox-exec` operates at file/process level and cannot filter by command arguments. BlastShield Guard wraps cloud CLIs and blocks destructive subcommands. When launched through `blastshield`, temporary runtime wrappers are injected automatically ahead of your current `PATH`, including repo-local and Hermit shims invoked by command name.
-
-Persistent wrappers are also available for regular shell use outside BlastShield:
-
-```bash
-# Install guard wrappers
-blastshield-guard install
-
-# Add to PATH (before real CLIs)
-export PATH="$HOME/.blastshield/guard:$PATH"
-```
-
-Persistent wrappers prompt for Touch ID. Runtime wrappers hard-block mutating commands inside the agent sandbox. `terraform plan` passes through immediately.
-
 ## Quick Start
 
 ```bash
-# Clone
 git clone https://github.com/cdrxyz/blastshield.git
 cd blastshield
-
-# Add to PATH
 export PATH="$PWD:$PATH"
 
 # Run Claude Code sandboxed
@@ -67,300 +19,26 @@ blastshield codex --full-auto
 
 # Run OpenCode sandboxed
 blastshield opencode
-
-# Optional: disable automatic command-level guards
-blastshield --no-guard claude --dangerously-skip-permissions
-
-# Check status
-blastshield --status
 ```
 
-## Usage
+## Documentation
 
-### Basic
+Full documentation is available at **[cdrxyz.github.io/blastshield](https://cdrxyz.github.io/blastshield)**:
 
-```bash
-# Auto-detect cloud profiles from project directory
-blastshield claude --dangerously-skip-permissions
-
-# Or with Codex
-blastshield codex --full-auto
-
-# Or with OpenCode
-blastshield opencode
-
-# Explicit profiles
-blastshield -p terraform codex
-blastshield -p gcloud -p aws opencode
-
-# Clean environment (strip API keys from env vars)
-blastshield -c claude --dangerously-skip-permissions
-blastshield -c codex --full-auto
-blastshield -c opencode
-
-# Disable auto-detection
-blastshield --no-detect claude
-blastshield --no-detect codex
-blastshield --no-detect opencode
-```
-
-### With Other Sandbox Tools
-
-BlastShield composes with existing tools — layer them for defense in depth:
-
-```bash
-# blastshield (cloud CLI policy) → safehouse (file policy) → agent's sandbox
-blastshield -p terraform -- safehouse claude --dangerously-skip-permissions
-blastshield -p aws -- safehouse codex --full-auto
-blastshield -p kubectl -- safehouse opencode
-```
-
-### With Conductor
-
-[Conductor](https://www.conductor.build/) runs Codex and Claude Code in isolated local workspaces on your Mac. BlastShield can protect those sessions if it wraps the process that actually launches the agent CLI.
-
-Two patterns work:
-
-1. Launch Conductor itself through BlastShield if Conductor directly spawns `codex` or `claude` as child processes.
-2. Configure Conductor to launch `blastshield codex ...` or `blastshield claude ...` instead of the raw agent CLI.
-
-What matters is the process tree. `sandbox-exec` applies to the process and child processes started inside BlastShield. If Conductor launches the real agent inside that tree, the sandbox and runtime guard apply. If Conductor hands work off to an already-running service outside that process tree, BlastShield does not.
-
-Example:
-
-```bash
-blastshield conductor
-```
-
-Or, if Conductor lets you customize the agent command it runs:
-
-```bash
-blastshield codex --full-auto
-blastshield claude --dangerously-skip-permissions
-```
-
-### Guard Installation
-
-Runtime guards are enabled automatically by `blastshield`. Use `--no-guard` to disable them for a launch.
-
-```bash
-# Install to default location
-blastshield-guard install
-
-# Install to custom location
-blastshield-guard install ~/bin/guard
-
-# List guarded CLIs
-blastshield-guard list
-
-# Check if a command would be blocked
-blastshield-guard check terraform destroy    # exit 1 = blocked
-blastshield-guard check terraform plan       # exit 0 = allowed
-
-# Uninstall
-blastshield-guard uninstall
-```
-
-### Diagnostics
-
-```bash
-# Show detected CLIs and auto-detected profiles
-blastshield --status
-
-# Show recent sandbox violations from system log
-blastshield --violations
-```
-
-## Protected Commands
-
-### Terraform Profile
-
-| Blocked | Allowed |
-|---------|---------|
-| `terraform destroy` | `terraform plan` |
-| `terraform apply -destroy` | `terraform apply` (create/update) |
-| State file writes | `terraform init, fmt, validate` |
-| Backend config writes | `terraform show, output, state list` |
-| Provider replacement | `terraform import, taint` |
-
-### gcloud Profile
-
-| Blocked | Allowed |
-|---------|---------|
-| Credential reads | `gcloud * list/describe` |
-| Service account key reads | `gcloud * create/deploy` |
-| Application default credentials | `gcloud * get-credentials` |
-| ADC writes | `gcloud auth status` |
-
-### AWS Profile
-
-| Blocked | Allowed |
-|---------|---------|
-| `~/.aws/credentials` reads | `~/.aws/config` reads |
-| SSO token cache reads | `aws * describe/list/get` |
-| State file writes | `aws * create/run/start` |
-| CDK/SAM state writes | `aws sts get-caller-identity` |
-
-### Azure Profile
-
-| Blocked | Allowed |
-|---------|---------|
-| `~/.azure` reads | `az * list/show` |
-| SP credential reads | `az * create/deploy` |
-| ARM template writes | `az * get-credentials` |
-| MSAL token cache | `az account show` |
-
-### kubectl Profile
-
-| Blocked | Allowed |
-|---------|---------|
-| Kubeconfig writes | Kubeconfig reads |
-| Service account tokens | `kubectl get/describe/logs` |
-| Helm chart lock writes | `kubectl apply/exec/port-forward` |
-| Namespace manifest writes | `kubectl config use-context` |
-
-### gh (GitHub CLI) Profile
-
-| Blocked | Allowed |
-|---------|---------|
-| `hosts.yml` reads | `gh repo list/view/clone` |
-| Workflow file writes | `gh pr/issue create` |
-| CODEOWNERS writes | `gh release create` |
-| Dependabot config writes | `gh auth status` |
-
-### Install (Package Manager) Profile
-
-Blocks AI agents from installing new dependencies without human review. Protects both the command-argument level (via guard) and the filesystem level (via sandbox profile).
-
-| Blocked | Allowed |
-|---------|---------|
-| `npm install / ci / add` | `npm list / ls / view / info / outdated` |
-| `yarn add / install / remove` | `yarn list / info / why / outdated` |
-| `pnpm add / install / remove` | `pnpm list / info / why / outdated` |
-| `pip install / uninstall / build` | `pip list / show / freeze / check` |
-| `brew install / reinstall / uninstall` | `brew list / info / search / outdated` |
-| `gem install / uninstall / build` | `gem list / search / spec / query` |
-| `cargo install / add / rm` | `cargo search / tree / list / metadata` |
-| `hermit install / uninstall / upgrade` | `hermit list / search / help / info` |
-| `apt install / remove / purge` | `apt list / search / show / cache` |
-| `dnf install / remove / upgrade` | `dnf list / search / info / check` |
-| Global package directories (writes) | Global package directories (reads) |
-| Lockfile writes | Lockfile reads |
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────┐
-│                  AI Agent                        │
-│  (Claude Code, Codex, OpenCode, Cursor, Gemini, etc.)    │
-└──────────────────┬──────────────────────────────┘
-                   │
-    ┌──────────────┼──────────────────┐
-    │              ▼                   │
-    │  Layer 2: blastshield-guard        │
-    │  (command-argument filter)       │
-    │  • Intercepts destructive        │
-    │    subcommands via PATH wrappers │
-    │  • Requires Touch ID / password  │
-    │  • Passes safe commands through  │
-    └──────────────┬──────────────────┘
-                   │
-    ┌──────────────┼──────────────────┐
-    │              ▼                   │
-    │  Layer 1: blastshield             │
-    │  (sandbox-exec profiles)        │
-    │  • Kernel-enforced file policy   │
-    │  • Blocks credential reads       │
-    │  • Blocks state file writes      │
-    │  • Protects backend configs      │
-    └──────────────┬──────────────────┘
-                   │
-    ┌──────────────┼──────────────────┐
-    │              ▼                   │
-    │  Layer 0: agent's built-in       │
-    │  sandbox (Claude /sandbox,       │
-    │  Codex approval policies)        │
-    │  • Tool-level gating            │
-    │  • Network filtering            │
-    └──────────────┬──────────────────┘
-                   │
-                   ▼
-              macOS Kernel
-```
-
-Each layer handles what the layer above cannot:
-- **Layer 0** handles tool-level permissions (agent's own sandbox)
-- **Layer 1** handles filesystem/process-level restrictions (kernel-enforced, cannot be bypassed)
-- **Layer 2** handles command-argument filtering (what sandbox-exec cannot see)
-
-## Profile System
-
-Profiles are [SBPL](https://reverse.put.as/wp-content/uploads/2011/09/Apple-Sandbox-Guide-v1.0.pdf) (Seatbelt Profile Language) files in `profiles/`. They compose by intersection — every deny rule from every profile is enforced.
-
-### Built-in Profiles
-
-| Profile | Always Loaded | Purpose |
-|---------|--------------|---------|
-| `base` | ✅ | Minimum viable sandbox: deny-all default, project writes, system reads |
-| `secrets` | ✅ | Protect SSH keys, cloud creds, browser data, shell init files |
-| `terraform` | Auto | State file protection, backend config locks, credential denial |
-| `gcloud` | Auto | GCP credential protection, SA key denial, ADC protection |
-| `aws` | Auto | AWS credential protection, SSO cache denial, state locks |
-| `azure` | Auto | Azure credential protection, MSAL cache denial, ARM protection |
-| `kubectl` | Auto | Kubeconfig write protection, SA token denial, Helm lock protection |
-| `gh` | Auto | GitHub auth protection, workflow file protection, CODEOWNERS locks |
-| `install` | Auto | Package manager install blocking, lockfile protection, global dir protection |
-
-### Custom Profiles
-
-Create profiles in `~/.config/blastshield/profiles/`:
-
-```scheme
-;; ~/.config/blastshield/profiles/custom.sb
-;; Deny access to internal API keys directory
-(deny file-read* (subpath "/Users/you/secrets"))
-(deny file-write* (subpath "/Users/you/secrets"))
-```
-
-Load with `-p`:
-
-```bash
-blastshield -p custom claude
-```
-
-### Auto-Detection
-
-BlastShield scans your project directory for indicator files:
-
-| Profile | Triggers |
-|---------|----------|
-| `terraform` | `*.tf` files |
-| `gcloud` | `.gcloudignore`, `cloudbuild.yaml`, `app.yaml` |
-| `aws` | `serverless.yml`, `template.yaml`, `cdk.json`, `samconfig.toml` |
-| `azure` | `azure-pipelines.yml`, `local.settings.json` |
-| `kubectl` | `kustomization.yaml`, `Chart.yaml`, `skaffold.yaml` |
-| `gh` | `.github/` directory |
-| `install` | `package.json`, `requirements.txt`, `Pipfile`, `pyproject.toml`, `Gemfile`, `Cargo.toml`, `go.mod`, `.hermit` |
+- **[Getting Started](https://cdrxyz.github.io/blastshield/getting-started)** — installation, first run, configuration
+- **[Architecture](https://cdrxyz.github.io/blastshield/architecture)** — two-layer defense model, how sandbox-exec and guard work together
+- **[Profiles](https://cdrxyz.github.io/blastshield/profiles)** — built-in and custom SBPL profiles, auto-detection
+- **[Guard](https://cdrxyz.github.io/blastshield/guard)** — command-argument filtering, Touch ID prompts, install/uninstall
+- **[Layering](https://cdrxyz.github.io/blastshield/layering)** — composing BlastShield with sandvault, safehouse, and other tools
+- **[Whitepaper](https://cdrxyz.github.io/blastshield/whitepaper)** — formal write-up with PDF download
+- **[FAQ](https://cdrxyz.github.io/blastshield/faq)** — common questions, caveats, and troubleshooting
 
 ## Caveats
 
 - **macOS only.** `sandbox-exec` is Apple-specific. For Linux, use [bubblewrap](https://github.com/containers/bubblewrap).
 - **sandbox-exec is deprecated** by Apple (since 10.15). Still works on Sequoia. No replacement exists for ad-hoc CLI sandboxing.
-- **Network is open by default.** If a secret enters the process (env var without `-c`, or fetched via credential helper), it can be exfiltrated. The sandbox operates at file paths, not content.
-- **Keychain access is allowed** so credential helpers work. An agent can perform authenticated actions (e.g., `git push`) but cannot read raw tokens from files.
-- **Layer 2 (guard) is a speed bump**, not a hard boundary. A determined agent that specifies full paths to CLIs bypasses PATH wrappers. Runtime guards cover Hermit and repo-local shims when invoked by command name. Layer 1 (sandbox) is the hard boundary.
-- **No nested sandboxes.** macOS doesn't support recursive `sandbox-exec`. If an app already runs in a sandbox, use `--no-sandbox` equivalent.
-
-## Related Projects
-
-| Project | Approach | Cloud CLI Protection? |
-|---------|----------|----------------------|
-| [sandvault](https://github.com/webcoyote/sandvault) | Separate macOS user account + sandbox-exec | ❌ File/secrets only |
-| [agent-safehouse](https://github.com/eugene1g/agent-safehouse) | Composable profiles, Homebrew, website | ❌ File/secrets only |
-| [agent-seatbelt](https://github.com/CJHwong/agent-seatbelt) | Two-file minimal wrapper | ❌ File/secrets only |
-| **BlastShield** | **sandbox-exec + command-argument guard** | **✅ Cloud CLI focus** |
-
-BlastShield composes with all of the above. Use sandvault for user isolation, safehouse for file policy, and BlastShield for cloud CLI protection.
+- **Network is open by default.** See [architecture docs](https://cdrxyz.github.io/blastshield/architecture) for mitigation with `-c`.
+- **Layer 2 (guard) is a speed bump**, not a hard boundary. Layer 1 (sandbox) is the hard boundary.
 
 ## License
 
