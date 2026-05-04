@@ -180,56 +180,70 @@ blastshield --violations
 
 | Blocked | Allowed |
 |---------|---------|
-| `terraform destroy` | `terraform plan` |
-| `terraform apply -destroy` | `terraform apply` (create/update) |
-| State file writes | `terraform init, fmt, validate` |
-| Backend config writes | `terraform show, output, state list` |
-| Provider replacement | `terraform import, taint` |
+| `terraform apply` | `terraform plan` |
+| `terraform destroy` | `terraform init, fmt, validate` |
+| `terraform import, taint, untaint` | `terraform show, output, console` |
+| `terraform refresh` | `state list, state show` |
+| `terraform state rm/mv` | `workspace list, workspace select` |
+| ALL tfstate writes | `terraform providers, version, graph` |
 
 ### gcloud Profile
 
 | Blocked | Allowed |
 |---------|---------|
-| Credential reads | `gcloud * list/describe` |
-| Service account key reads | `gcloud * create/deploy` |
-| Application default credentials | `gcloud * get-credentials` |
-| ADC writes | `gcloud auth status` |
+| `gcloud * delete/create/deploy/update` | `gcloud * list/describe/get` |
+| `gcloud * add/remove/patch/set` | `gcloud auth status` |
+| `gcloud * enable/disable/submit` | `gcloud config list/get` |
+| `gcloud builds submit` | `gcloud version, help` |
+| `gcloud app deploy` | |
+| Service account key reads | |
 
 ### AWS Profile
 
 | Blocked | Allowed |
 |---------|---------|
-| `~/.aws/credentials` reads | `~/.aws/config` reads |
-| SSO token cache reads | `aws * describe/list/get` |
-| State file writes | `aws * create/run/start` |
-| CDK/SAM state writes | `aws sts get-caller-identity` |
+| `aws * delete/create/put/update` | `aws * describe-/list-/get-` |
+| `aws * deploy/terminate/run-` | `aws s3 ls, cp (download), presign` |
+| `aws * start-/stop-/reboot` | `aws sts get-caller-identity` |
+| `aws * authorize/revoke/send` | `aws logs describe-/get-/filter-` |
+| Credential reads | `aws dynamodb scan/query/get-item` |
+| SSO token cache reads | `aws iam list-/get-` |
+| CDK/SAM state writes | `aws lambda list-, invoke` |
 
 ### Azure Profile
 
 | Blocked | Allowed |
 |---------|---------|
-| `~/.azure` reads | `az * list/show` |
-| SP credential reads | `az * create/deploy` |
-| ARM template writes | `az * get-credentials` |
-| MSAL token cache | `az account show` |
+| `az * delete/create/update/deploy` | `az * list/show` |
+| `az * set/remove/add/lock/unlock` | `az account show/list` |
+| `az * scale/restart` | `az version, help` |
+| ALL `~/.azure` access | |
 
 ### kubectl Profile
 
 | Blocked | Allowed |
 |---------|---------|
-| Kubeconfig writes | Kubeconfig reads |
-| Service account tokens | `kubectl get/describe/logs` |
-| Helm chart lock writes | `kubectl apply/exec/port-forward` |
-| Namespace manifest writes | `kubectl config use-context` |
+| `kubectl apply/create/delete` | `kubectl get/describe/logs` |
+| `kubectl patch/scale/exec` | `kubectl top, events` |
+| `kubectl taint/cordon/uncordon/drain` | `kubectl api-resources/versions/explain` |
+| `kubectl rollout restart/undo` | `kubectl auth can-i` |
+| `kubectl label/annotate/set` | `kubectl config view/get-contexts` |
+| `kubectl expose/run/cp/debug` | `kubectl rollout status/history` |
+| Kubeconfig writes | `kubectl version` |
+| Helm install/upgrade/delete | Helm list/status/show/search |
 
 ### gh (GitHub CLI) Profile
 
 | Blocked | Allowed |
 |---------|---------|
-| `hosts.yml` reads | `gh repo list/view/clone` |
-| Workflow file writes | `gh pr/issue create` |
-| CODEOWNERS writes | `gh release create` |
-| Dependabot config writes | `gh auth status` |
+| `gh repo delete/edit/rename` | `gh repo list/view/clone/fork` |
+| `gh pr merge/close` | `gh pr list/view/diff/checkout` |
+| `gh release delete` | `gh release create/list/view/download` |
+| `gh workflow disable/enable` | `gh workflow list/view` |
+| `gh run cancel` | `gh issue create/list/view/comment` |
+| `gh api -X DELETE/PUT/PATCH` | `gh pr create` |
+| Workflow file writes | `gh auth status` |
+| CODEOWNERS writes | `gh secret set` |
 
 ### Install (Package Manager) Profile
 
