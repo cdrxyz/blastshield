@@ -38,9 +38,6 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Sync README into docs
-        run: npm run sync-content
-
       - name: Build docs
         run: npm run build
 
@@ -157,9 +154,6 @@ jobs:
 
       - name: Install dependencies
         run: npm install
-
-      - name: Sync README into docs
-        run: npm run sync-content
 
       - name: Build docs
         run: npm run build
