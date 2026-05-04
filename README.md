@@ -1,6 +1,11 @@
 # BlastShield 🔒
 
+> [!WARNING]
+> BlastShield is still in beta and may contain bugs. Validate it in a non-production environment before depending on it for safety-critical workflows.
+
 **Sandbox AI coding agents with kernel-level protection against destructive cloud CLI commands.**
+
+![BlastShield](docs/public/blastshield-demo.png)
 
 Uses macOS `sandbox-exec` (Apple Seatbelt) to enforce filesystem restrictions that prevent AI agents from executing destructive operations — `terraform destroy`, `gcloud compute instances delete`, `aws s3 rb`, `az group delete`, `kubectl delete namespace` — even when running with `--dangerously-skip-permissions` or equivalent unrestricted modes.
 
@@ -33,12 +38,9 @@ Full documentation is available at **[cdrxyz.github.io/blastshield](https://cdrx
 - **[Whitepaper](https://cdrxyz.github.io/blastshield/whitepaper)** — formal write-up with PDF download
 - **[FAQ](https://cdrxyz.github.io/blastshield/faq)** — common questions, caveats, and troubleshooting
 
-## Caveats
+## Blog
 
-- **macOS only.** `sandbox-exec` is Apple-specific. For Linux, use [bubblewrap](https://github.com/containers/bubblewrap).
-- **sandbox-exec is deprecated** by Apple (since 10.15). Still works on Sequoia. No replacement exists for ad-hoc CLI sandboxing.
-- **Network is open by default.** See [architecture docs](https://cdrxyz.github.io/blastshield/architecture) for mitigation with `-c`.
-- **Layer 2 (guard) is a speed bump**, not a hard boundary. Layer 1 (sandbox) is the hard boundary.
+Read [Shrink the Blast Radius](https://cdr.xyz/blog/shrink-the-blast-radius) — why BlastShield exists and why your AI agent has no chill.
 
 ## License
 

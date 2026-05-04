@@ -3,9 +3,8 @@
   "type": "module",
   "version": "0.0.1",
   "scripts": {
-    "sync-content": "node ./scripts/sync-readme-to-docs.mjs",
     "dev": "astro dev",
-    "build": "npm run sync-content && astro build",
+    "build": "astro build",
     "preview": "astro preview"
   },
   "dependencies": {
