@@ -1,0 +1,87 @@
+name: PR Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: pr-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    if: github.event.action != 'closed'
+    defaults:
+      run:
+        working-directory: docs
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            docs/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('docs/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build docs with preview base path
+        run: npm run build
+        env:
+          ASTRO_BASE: /blastshield/pr-preview/${{ github.event.pull_request.number }}
+
+      - name: Deploy preview to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs/dist
+          destination_dir: pr-preview/${{ github.event.pull_request.number }}
+          keep_files: true
+
+      - name: Comment preview URL
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            🚀 **Docs preview deployed!**
+
+            | URL | Status |
+            |-----|--------|
+            | [Preview](https://cdrxyz.github.io/blastshield/pr-preview/${{ github.event.pull_request.number }}/) | Ready |
+
+            Preview will update automatically when you push more commits.
+          edit-mode: replace
+
+  cleanup:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'closed'
+    steps:
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      - name: Remove preview folder
+        run: |
+          cd gh-pages
+          rm -rf pr-preview/${{ github.event.pull_request.number }}
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --staged --quiet || git commit -m "Remove PR preview for #${{ github.event.pull_request.number }}"
+          git push
