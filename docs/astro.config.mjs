@@ -3,7 +3,7 @@ import starlight from '@astrojs/starlight';
 
 export default defineConfig({
   site: 'https://cdrxyz.github.io',
-  base: '/blastshield',
+  base: process.env.ASTRO_BASE || '/blastshield',
   integrations: [
     starlight({
       title: 'BlastShield',
