@@ -1,0 +1,80 @@
+---
+import EditLink from 'virtual:starlight/components/EditLink';
+import LastUpdated from 'virtual:starlight/components/LastUpdated';
+import Pagination from 'virtual:starlight/components/Pagination';
+import config from 'virtual:starlight/user-config';
+import { Icon } from '@astrojs/starlight/components';
+---
+
+<footer class="sl-flex">
+	<div class="meta sl-flex">
+		<EditLink />
+		<LastUpdated />
+	</div>
+	<Pagination />
+
+	<div class="credits sl-flex">
+		<a class="credit sl-flex" href="https://cedarlabs.ca">
+			<svg class="half-cedar" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" width="16" height="16" aria-hidden="true">
+				<line x1="16" y1="28" x2="16" y2="4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+				<path d="M16 22 L9 22 L16 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+				<path d="M16 16 L11 16 L16 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+				<path d="M16 10 L13 10 L16 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+			</svg>
+			Cedar Labs
+		</a>
+		{
+			config.credits && (
+				<a class="kudos sl-flex" href="https://starlight.astro.build">
+					<Icon name={'starlight'} /> {Astro.locals.t('builtWithStarlight.label')}
+				</a>
+			)
+		}
+	</div>
+</footer>
+
+<style>
+	@layer starlight.core {
+		footer {
+			flex-direction: column;
+			gap: 1.5rem;
+		}
+		.meta {
+			gap: 0.75rem 3rem;
+			justify-content: space-between;
+			flex-wrap: wrap;
+			margin-top: 3rem;
+			font-size: var(--sl-text-sm);
+			color: var(--sl-color-gray-3);
+		}
+		.meta > :global(p:only-child) {
+			margin-inline-start: auto;
+		}
+
+		.credits {
+			gap: 1.5rem;
+			justify-content: center;
+			margin: 1.5rem auto;
+			flex-wrap: wrap;
+		}
+
+		.credit,
+		.kudos {
+			align-items: center;
+			gap: 0.5em;
+			font-size: var(--sl-text-xs);
+			text-decoration: none;
+			color: var(--sl-color-gray-3);
+		}
+		.credit:hover,
+		.kudos:hover {
+			color: var(--sl-color-white);
+		}
+	}
+
+	@layer starlight.components {
+		.kudos :global(svg) {
+			color: var(--sl-color-orange);
+		}
+	}
+</style>

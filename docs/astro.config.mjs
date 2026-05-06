@@ -16,6 +16,7 @@ export default defineConfig({
       ],
       components: {
         Banner: './src/components/BetaBanner.astro',
+        Footer: './src/components/Footer.astro',
       },
       editLink: {
         baseUrl: 'https://github.com/cdrxyz/blastshield/edit/master/docs/src/content/docs/',
