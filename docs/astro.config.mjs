@@ -7,6 +7,10 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'BlastShield',
+      logo: {
+        light: './src/assets/half-cedar-mark-light.svg',
+        dark: './src/assets/half-cedar-mark-dark.svg',
+      },
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/cdrxyz/blastshield' },
       ],
