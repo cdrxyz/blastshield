@@ -337,6 +337,7 @@ main() {
     local verbose=false
     local diagnostic_mode=""
     local command_args=()
+    local gui_app_launch=false
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -454,11 +455,26 @@ HELP
             if ! $already_has_gui; then
                 extra_profiles+=("gui-app")
             fi
+            gui_app_launch=true
             # Rewrite command: drop 'open', use resolved binary directly
             command_args=("$resolved" "${command_args[@]:2}")
         else
             warn "Could not resolve .app bundle: $app_path — proceeding without 'gui-app' profile (may fail)"
         fi
+    fi
+
+    # When launching a GUI app, skip the 'secrets' profile — GUI apps need
+    # normal system access (including CLI tools like gh) and the user is
+    # directly invoking a known app, so the exfiltration threat model differs
+    # from AI agent runs. The gui-app profile already confines writes to
+    # user-level directories.
+    if $gui_app_launch; then
+        local filtered_profiles=()
+        for p in "${profiles[@]}"; do
+            [[ "$p" != "secrets" ]] && filtered_profiles+=("$p")
+        done
+        profiles=("${filtered_profiles[@]}")
+        info "GUI app launch: skipping 'secrets' profile to allow normal system access"
     fi
 
     # Handle diagnostic modes
