@@ -49,14 +49,6 @@ jobs:
         run: |
           perl -pi -e 's/^readonly VERSION=".*"/readonly VERSION="$ENV{NEW_VERSION}"/' blastshield
 
-      - name: Update Homebrew formula version
-        env:
-          NEW_VERSION: ${{ steps.version.outputs.new_version }}
-        shell: bash
-        run: |
-          perl -pi -e 's{^  url "https://github.com/cdrxyz/blastshield/releases/download/v[^/]+/blastshield-[^"]+\.tar\.gz"}{  url "https://github.com/cdrxyz/blastshield/releases/download/v$ENV{NEW_VERSION}/blastshield-$ENV{NEW_VERSION}.tar.gz"}' Formula/blastshield.rb
-          perl -pi -e 's/^  version ".*"/  version "$ENV{NEW_VERSION}"/' Formula/blastshield.rb
-
       - name: Package release
         run: |
           python3 scripts/package-release.py
@@ -69,18 +61,13 @@ jobs:
           echo "tarball=$TARBALL" >> $GITHUB_OUTPUT
           SHA256=$(python3 -c "import hashlib; print(hashlib.sha256(open('$TARBALL','rb').read()).hexdigest())")
           echo "sha256=$SHA256" >> $GITHUB_OUTPUT
-
-      - name: Update formula checksum
-        env:
-          SHA256: ${{ steps.sha.outputs.sha256 }}
-        run: |
-          perl -pi -e 's/^  sha256 ".*"/  sha256 "$ENV{SHA256}"/' Formula/blastshield.rb
+          echo "release_url=https://github.com/cdrxyz/blastshield/releases/download/v${{ steps.version.outputs.new_version }}/blastshield-${{ steps.version.outputs.new_version }}.tar.gz" >> $GITHUB_OUTPUT
 
       - name: Commit version bumps
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git add blastshield Formula/blastshield.rb
+          git add blastshield
           git commit -m "chore: release v${{ steps.version.outputs.new_version }}\n\n[skip ci] [skip release]"
 
       - name: Push commit
@@ -110,3 +97,22 @@ jobs:
             dist/checksums.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Dispatch Homebrew tap update
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_REPO_TOKEN }}
+          VERSION: ${{ steps.version.outputs.new_version }}
+          RELEASE_URL: ${{ steps.sha.outputs.release_url }}
+          SHA256: ${{ steps.sha.outputs.sha256 }}
+        run: |
+          if [[ -z "${GH_TOKEN:-}" ]]; then
+            echo "HOMEBREW_TAP_REPO_TOKEN is not configured."
+            exit 1
+          fi
+          gh workflow run update-formula.yml \
+            --repo cdrxyz/homebrew-tap \
+            --ref master \
+            -f formula=blastshield \
+            -f version="$VERSION" \
+            -f url="$RELEASE_URL" \
+            -f sha256="$SHA256"

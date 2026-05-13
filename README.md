@@ -14,7 +14,7 @@ Uses macOS `sandbox-exec` (Apple Seatbelt) to enforce filesystem restrictions th
 ### Install via Homebrew (recommended)
 
 ```bash
-brew tap cdrxyz/blastshield https://github.com/cdrxyz/blastshield
+brew tap cdrxyz/tap
 brew install blastshield
 ```
 
