@@ -8,8 +8,8 @@ on:
 
 jobs:
   release:
-    # Skip if the triggering commit has [skip release] in its message
-    if: "!contains(github.event.head_commit.message, '[skip release]')" 
+    # Allow workflow_dispatch always; skip only auto-triggered push commits that contain the marker
+    if: ${{ github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip release]') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
