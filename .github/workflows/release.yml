@@ -44,13 +44,18 @@ jobs:
           echo "New release version: $NEW_VERSION" >> $GITHUB_STEP_SUMMARY
 
       - name: Update blastshield script version
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.new_version }}
         run: |
-          perl -pi -e "s/^readonly VERSION=".*"/readonly VERSION="${{ steps.version.outputs.new_version }}"/" blastshield
+          perl -pi -e 's/^readonly VERSION=".*"/readonly VERSION="$ENV{NEW_VERSION}"/' blastshield
 
       - name: Update Homebrew formula version
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.new_version }}
         shell: bash
         run: |
-          perl -pi -e "s/^  version ".*"/  version "${{ steps.version.outputs.new_version }}"/" Formula/blastshield.rb
+          perl -pi -e 's{^  url "https://github.com/cdrxyz/blastshield/releases/download/v[^/]+/blastshield-[^"]+\.tar\.gz"}{  url "https://github.com/cdrxyz/blastshield/releases/download/v$ENV{NEW_VERSION}/blastshield-$ENV{NEW_VERSION}.tar.gz"}' Formula/blastshield.rb
+          perl -pi -e 's/^  version ".*"/  version "$ENV{NEW_VERSION}"/' Formula/blastshield.rb
 
       - name: Package release
         run: |
@@ -66,8 +71,10 @@ jobs:
           echo "sha256=$SHA256" >> $GITHUB_OUTPUT
 
       - name: Update formula checksum
+        env:
+          SHA256: ${{ steps.sha.outputs.sha256 }}
         run: |
-          perl -pi -e "s/sha256 ".*"/sha256 "${{ steps.sha.outputs.sha256 }}"/" Formula/blastshield.rb
+          perl -pi -e 's/^  sha256 ".*"/  sha256 "$ENV{SHA256}"/' Formula/blastshield.rb
 
       - name: Commit version bumps
         run: |

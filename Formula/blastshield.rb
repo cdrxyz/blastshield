@@ -1,19 +1,20 @@
 class Blastshield < Formula
-  desc "Sandbox AI coding agents with kernel-level protection against destructive cloud CLI commands"
+  desc "Sandbox AI coding agents against destructive cloud CLI commands"
   homepage "https://cdrxyz.github.io/blastshield"
-  url "https://github.com/cdrxyz/blastshield/releases/download/v#{version}/blastshield-#{version}.tar.gz"
+  url "https://github.com/cdrxyz/blastshield/releases/download/v0.1.0/blastshield-0.1.0.tar.gz"
+  version "0.1.0"
   sha256 "0000000000000000000000000000000000000000000000000000000000000000"
   license "Apache-2.0"
-
-  version "0.1.0"  # Updated automatically by release workflow
 
   depends_on "bash"
 
   def install
-    bin.install "blastshield"
-    bin.install "helpers/blastshield-guard"
-    bash_completion.install "completions/blastshield.bash"
-    bash_completion.install "completions/blastshield-guard.bash"
+    libexec.install "blastshield", "profiles", "helpers"
+    bin.write_exec_script libexec/"blastshield"
+    bin.write_exec_script libexec/"helpers/blastshield-guard"
+
+    bash_completion.install "completions/blastshield.bash" => "blastshield"
+    zsh_completion.install "completions/_blastshield"
   end
 
   test do
