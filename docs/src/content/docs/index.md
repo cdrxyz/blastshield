@@ -32,8 +32,8 @@ Runtime guard wrappers intercept dangerous subcommands before they reach Terrafo
 ## Quick Start
 
 ```bash
-git clone https://github.com/cdrxyz/blastshield.git
-cd blastshield
-export PATH="$PWD:$PATH"
+brew install cdrxyz/tap/blastshield
 blastshield claude --dangerously-skip-permissions
 ```
+
+For manual installation, see [Getting Started](./getting-started/).

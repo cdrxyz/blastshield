@@ -52,7 +52,15 @@ export PATH="$HOME/.blastshield/guard:$PATH"
 
 Persistent wrappers prompt for Touch ID. Runtime wrappers hard-block mutating commands inside the agent sandbox. `terraform plan` passes through immediately.
 
-## Quick Start
+## Installation
+
+### Homebrew (recommended)
+
+```bash
+brew install cdrxyz/tap/blastshield
+```
+
+### Advanced: Manual Installation
 
 ```bash
 # Clone
@@ -61,21 +69,6 @@ cd blastshield
 
 # Add to PATH
 export PATH="$PWD:$PATH"
-
-# Run Claude Code sandboxed
-blastshield claude --dangerously-skip-permissions
-
-# Run Codex sandboxed
-blastshield codex --full-auto
-
-# Run OpenCode sandboxed
-blastshield opencode
-
-# Optional: disable automatic command-level guards
-blastshield --no-guard claude --dangerously-skip-permissions
-
-# Check status
-blastshield --status
 ```
 
 ## Usage
