@@ -118,28 +118,45 @@ blastshield -p aws -- safehouse codex --full-auto
 blastshield -p kubectl -- safehouse opencode
 ```
 
-### With Conductor
+### With GUI Agent Apps (Conductor, Cursor, IntelliJ, VSCode)
 
-[Conductor](https://www.conductor.build/) runs Codex and Claude Code in isolated local workspaces on your Mac. BlastShield can protect those sessions if it wraps the process that actually launches the agent CLI.
+Many AI agent IDEs and launcher apps run as GUI applications but still spawn agent CLIs as child processes. BlastShield can protect those sessions by wrapping the app's process using the macOS `open` command.
 
-Two patterns work:
-
-1. Launch Conductor itself through BlastShield if Conductor directly spawns `codex` or `claude` as child processes.
-2. Configure Conductor to launch `blastshield codex ...` or `blastshield claude ...` instead of the raw agent CLI.
-
-What matters is the process tree. `sandbox-exec` applies to the process and child processes started inside BlastShield. If Conductor launches the real agent inside that tree, the sandbox and runtime guard apply. If Conductor hands work off to an already-running service outside that process tree, BlastShield does not.
-
-Example:
+**General pattern for any GUI app:**
 
 ```bash
-blastshield conductor
+blastshield open /Applications/AppName.app
 ```
 
-Or, if Conductor lets you customize the agent command it runs:
+This works for:
+- Conductor (`/Applications/Conductor.app`)
+- Cursor (`/Applications/Cursor.app`)
+- IntelliJ IDEA (`/Applications/IntelliJ\ IDEA.app`)
+- VSCode (`/Applications/Visual\ Studio\ Code.app`)
+
+**Why this works:** `open` launches the app, and BlastShield's sandbox applies to the app process and all its children. When the app spawns `codex`, `claude`, or other agent CLIs, those child processes inherit the sandbox restrictions and runtime guards.
+
+**Alternate pattern (if the app supports custom agent commands):**
+
+Configure the app to run the BlastShield-wrapped CLI directly:
 
 ```bash
 blastshield codex --full-auto
 blastshield claude --dangerously-skip-permissions
+blastshield opencode
+```
+
+**What matters is the process tree:** The sandbox applies to the process and child processes started inside BlastShield. If the app launches agent processes inside that tree, both the filesystem sandbox and command-argument guards protect the session. If the app hands work off to an already-running service outside that process tree, BlastShield cannot protect it.
+
+**Conductor-specific example:**
+
+```bash
+# Wrap Conductor itself (the GUI app)
+blastshield open /Applications/Conductor.app
+
+# OR: if Conductor lets you customize the agent command, point it to BlastShield
+# Example agent command in Conductor settings:
+blastshield codex --full-auto
 ```
 
 ### Guard Installation
