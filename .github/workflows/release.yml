@@ -1,0 +1,103 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Determine next version
+        id: version
+        shell: bash
+        run: |
+          # Read current version from blastshield script
+          CURRENT_VERSION=$(grep '^readonly VERSION=' blastshield | cut -d'"' -f2)
+          echo "Current script version: $CURRENT_VERSION" >> $GITHUB_STEP_SUMMARY
+
+          # Parse components
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+
+          # Compute next patch: just increment the current patch by 1
+          # (We always bump because this workflow runs only on new commits to master)
+          NEXT_PATCH=$((PATCH + 1))
+          NEW_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New release version: $NEW_VERSION" >> $GITHUB_STEP_SUMMARY
+
+      - name: Update blastshield script version
+        run: |
+          perl -pi -e "s/^readonly VERSION=".*"/readonly VERSION="${{ steps.version.outputs.new_version }}"/" blastshield
+
+      - name: Update Homebrew formula version
+        shell: bash
+        run: |
+          perl -pi -e "s/^  version ".*"/  version "${{ steps.version.outputs.new_version }}"/" Formula/blastshield.rb
+
+      - name: Package release
+        run: |
+          python3 scripts/package-release.py
+
+      - name: Compute SHA256 of tarball
+        id: sha
+        shell: bash
+        run: |
+          TARBALL=$(ls dist/*.tar.gz | head -n1)
+          echo "tarball=$TARBALL" >> $GITHUB_OUTPUT
+          SHA256=$(python3 -c "import hashlib; print(hashlib.sha256(open('$TARBALL','rb').read()).hexdigest())")
+          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
+
+      - name: Update formula checksum
+        run: |
+          perl -pi -e "s/sha256 ".*"/sha256 "${{ steps.sha.outputs.sha256 }}"/" Formula/blastshield.rb
+
+      - name: Commit version bumps
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add blastshield Formula/blastshield.rb
+          git commit -m "chore: release v${{ steps.version.outputs.new_version }}\n\n[skip ci]"
+
+      - name: Push commit
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git push origin HEAD:master
+
+      - name: Create and push tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git tag -a "v${{ steps.version.outputs.new_version }}" -m "Release v${{ steps.version.outputs.new_version }}"
+          git push origin "v${{ steps.version.outputs.new_version }}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.new_version }}
+          name: BlastShield v${{ steps.version.outputs.new_version }}
+          body: |
+            Automated release from commit ${{ github.sha }}.
+          draft: false
+          prerelease: true
+          files: |
+            dist/*.tar.gz
+            dist/checksums.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
