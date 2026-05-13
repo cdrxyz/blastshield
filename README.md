@@ -9,22 +9,25 @@
 
 Uses macOS `sandbox-exec` (Apple Seatbelt) to enforce filesystem restrictions that prevent AI agents from executing destructive operations — `terraform destroy`, `gcloud compute instances delete`, `aws s3 rb`, `az group delete`, `kubectl delete namespace` — even when running with `--dangerously-skip-permissions` or equivalent unrestricted modes.
 
-## Quick Start
+## Installation
 
-### Install via Homebrew (recommended)
+### Homebrew (recommended)
 
 ```bash
-brew tap cdrxyz/tap
-brew install blastshield
+brew install cdrxyz/tap/blastshield
 ```
 
-### Manual Install
+### Advanced: Manual Installation
 
 ```bash
 git clone https://github.com/cdrxyz/blastshield.git
 cd blastshield
 export PATH="$PWD:$PATH"
+```
 
+## Quick Start
+
+```bash
 # Run Claude Code sandboxed
 blastshield claude --dangerously-skip-permissions
 
