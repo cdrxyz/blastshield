@@ -121,6 +121,26 @@ detect_cloud_clis() {
             detected+=("$cli")
         fi
     done
+
+    # If launching a GUI app via 'open /path/to/App.app', auto-add gui-app profile
+    if [[ ${#command_args[@]} -ge 2 ]] && [[ "${command_args[0]}" == "open" ]] && [[ "${command_args[1]}" == *.app ]]; then
+        local app_path="${command_args[1]}"
+        if resolved=$(resolve_app_bundle "$app_path" 2>/dev/null); then
+            info "Detected .app bundle — auto-adding 'gui-app' profile and bypassing 'open'"
+            # Add gui-app to profiles if not already present
+            local already_has_gui=false
+            for p in "${extra_profiles[@]:-}"; do
+                [[ "$p" == "gui-app" ]] && already_has_gui=true && break
+            done
+            if ! $already_has_gui; then
+                extra_profiles+=("gui-app")
+            fi
+            # Rewrite command: drop 'open', use resolved binary directly
+            command_args=("$resolved" "${command_args[@]:2}")
+        else
+            warn "Could not resolve .app bundle: $app_path — proceeding without 'gui-app' profile (may fail)"
+        fi
+    fi
     echo "${detected[*]-}"
 }
 
@@ -421,6 +441,26 @@ HELP
         esac
     done
 
+    # If launching a GUI app via 'open /path/to/App.app', auto-add gui-app profile
+    if [[ ${#command_args[@]} -ge 2 ]] && [[ "${command_args[0]}" == "open" ]] && [[ "${command_args[1]}" == *.app ]]; then
+        local app_path="${command_args[1]}"
+        if resolved=$(resolve_app_bundle "$app_path" 2>/dev/null); then
+            info "Detected .app bundle — auto-adding 'gui-app' profile and bypassing 'open'"
+            # Add gui-app to profiles if not already present
+            local already_has_gui=false
+            for p in "${extra_profiles[@]:-}"; do
+                [[ "$p" == "gui-app" ]] && already_has_gui=true && break
+            done
+            if ! $already_has_gui; then
+                extra_profiles+=("gui-app")
+            fi
+            # Rewrite command: drop 'open', use resolved binary directly
+            command_args=("$resolved" "${command_args[@]:2}")
+        else
+            warn "Could not resolve .app bundle: $app_path — proceeding without 'gui-app' profile (may fail)"
+        fi
+    fi
+
     # Handle diagnostic modes
     if [[ -n "$diagnostic_mode" ]]; then
         case "$diagnostic_mode" in
@@ -474,20 +514,6 @@ HELP
 
         $verbose && [[ -n "${BLASTSHIELD_TMP_GUARD_DIR:-}" ]] && info "Runtime guard: $BLASTSHIELD_TMP_GUARD_DIR"
     fi
-# Special handling: if command starts with 'open' followed by a .app bundle,
-# replace with direct execution of the bundle's inner binary to avoid
-# Launch Services permission errors inside sandbox-exec (-54)
-if [[ ${#command_args[@]} -ge 2 ]] && [[ "${command_args[0]}" == "open" ]] && [[ "${command_args[1]}" == *.app ]]; then
-    local app_path="${command_args[1]}"
-    local resolved
-    if resolved=$(resolve_app_bundle "$app_path" 2>/dev/null); then
-        info "Detected .app bundle — bypassing 'open' for direct execution: $(basename "$resolved")"
-        # Replace command: drop 'open', use resolved binary directly
-        command_args=("$resolved" "${command_args[@]:2}")
-    else
-        warn "Could not resolve .app bundle: $app_path — falling back to 'open' (may fail)"
-    fi
-fi
 
 
     # Clean environment if requested
