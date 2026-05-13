@@ -128,6 +128,12 @@ Many AI agent IDEs and launcher apps run as GUI applications but still spawn age
 blastshield open /Applications/AppName.app
 ```
 
+**Note:** For GUI agent apps, add the `gui-app` profile to grant the additional filesystem and IPC permissions they need:
+
+```bash
+blastshield -p gui-app open /Applications/Conductor.app
+```
+
 This works for:
 - Conductor (`/Applications/Conductor.app`)
 - Cursor (`/Applications/Cursor.app`)
@@ -151,12 +157,13 @@ blastshield opencode
 **Conductor-specific example:**
 
 ```bash
-# Wrap Conductor itself (the GUI app)
-blastshield open /Applications/Conductor.app
+# Wrap Conductor itself (the GUI app) with GUI app permissions
+blastshield -p gui-app open /Applications/Conductor.app
 
 # OR: if Conductor lets you customize the agent command, point it to BlastShield
 # Example agent command in Conductor settings:
-blastshield codex --full-auto
+blastshield -p gui-app codex --full-auto
+blastshield -p gui-app claude --dangerously-skip-permissions
 ```
 
 ### Guard Installation

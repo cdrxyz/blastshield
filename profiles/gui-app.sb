@@ -1,0 +1,65 @@
+;; blastshield GUI app profile - enables launching GUI applications via `open`
+;; Usage: blastshield -p gui-app open /Applications/Conductor.app
+;;
+;; This profile grants the minimal additional permissions needed for
+;; the `open` command to successfully launch GUI applications through
+;; macOS Launch Services. Without this, _LSOpenURLsWithCompletionHandler()
+;; fails with error -54 (permission denied) when called from inside a
+;; sandbox-exec sandbox.
+;;
+;; Parameters injected by wrapper: _HOME, _PROJECT_DIR, _TMPDIR
+
+(version 1)
+
+;; ═══ Launch Services IPC ═══
+
+;; Allow all ipc-* operations (reinforces base profile)
+(allow ipc*)
+
+;; Allow all mach* operations for Launch Services communication
+(allow mach*)
+
+;; ═══ Process Execution for GUI Apps ═══
+
+;; Explicitly allow process-exec for GUI app binaries and helper tools
+(allow process-exec (subpath "/"))
+
+;; Allow process-fork for GUI app child processes (reinforces base)
+(allow process-fork)
+
+;; ═══ Filesystem: Read GUI App Bundles ═══
+
+;; Read access to /Applications for discovering and launching .app bundles
+(allow file-read* (subpath "/Applications"))
+
+;; Read access to ~/Applications for user-installed apps
+(allow file-read* (subpath "_HOME/Applications"))
+
+;; Read access to system frameworks and libraries loaded by GUI apps
+(allow file-read* (subpath "/Library"))
+(allow file-read* (subpath "/System/Library"))
+
+;; ═══ GUI App State Directories ═══
+
+;; Write access to user's Application Support directories
+;; (GUI apps store state, caches, preferences here)
+(allow file-write* (subpath "_HOME/Library/Application Support"))
+
+;; Write access to user's Caches (GUI apps write thumbnails, metadata)
+(allow file-write* (subpath "_HOME/Library/Caches"))
+
+;; Write access to user's Preferences (app settings)
+(allow file-write* (subpath "_HOME/Library/Preferences"))
+
+;; ═══ Deny: Dangerous Write Locations ═══
+
+;; No writing to system directories
+(deny file-write* (subpath "/etc"))
+(deny file-write* (subpath "/usr"))
+(deny file-write* (subpath "/bin"))
+(deny file-write* (subpath "/sbin"))
+(deny file-write* (subpath "/System"))
+
+;; No writing to other users' homes
+(deny file-write* (regex "^/Users/(?!_HOME)"))
+
