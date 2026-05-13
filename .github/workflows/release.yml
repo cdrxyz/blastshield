@@ -8,6 +8,8 @@ on:
 
 jobs:
   release:
+    # Skip if the triggering commit has [skip release] in its message
+    if: "!contains(github.event.head_commit.message, '[skip release]')" 
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -72,7 +74,7 @@ jobs:
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add blastshield Formula/blastshield.rb
-          git commit -m "chore: release v${{ steps.version.outputs.new_version }}\n\n[skip ci]"
+          git commit -m "chore: release v${{ steps.version.outputs.new_version }}\n\n[skip release]"
 
       - name: Push commit
         env:
