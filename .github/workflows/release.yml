@@ -8,8 +8,8 @@ on:
 
 jobs:
   release:
-    # Allow workflow_dispatch always; skip only auto-triggered push commits that contain the marker
-    if: ${{ github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip release]') }}
+    # Allow workflow_dispatch always; skip only the automated release-bump commit.
+    if: ${{ github.event_name != 'push' || !(startsWith(github.event.head_commit.message, 'chore: release v') && contains(github.event.head_commit.message, '[skip release]')) }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
