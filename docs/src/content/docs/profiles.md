@@ -13,6 +13,8 @@ This is by design: the agent plans, **you** execute.
 
 Profiles are [SBPL](https://reverse.put.as/wp-content/uploads/2011/09/Apple-Sandbox-Guide-v1.0.pdf) (Seatbelt Profile Language) files in `profiles/`. They compose by **intersection** — every deny rule from every loaded profile is enforced.
 
+For `.app` launches, BlastShield uses GUI compatibility mode: it skips the always-loaded `secrets` profile and skips project profile auto-detection, because long-lived GUI apps often run startup checks that need normal CLI auth files. Explicit `-p` profiles still apply.
+
 ### Built-in Profiles
 
 | Profile | Always Loaded | Purpose |

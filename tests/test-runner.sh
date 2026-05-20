@@ -636,6 +636,36 @@ HERMIT_TERRAFORM
 Second: $explicit_out2"
     fi
 
+    # Test: GUI app launches do not auto-detect project profiles that block app startup checks
+    gui_tmp=$(mktemp -d)
+    mkdir -p "$gui_tmp/home/.config/gh" "$gui_tmp/project/.github" "$gui_tmp/Fake.app/Contents/MacOS"
+    printf 'github.com:\n  oauth_token: dummy\n' > "$gui_tmp/home/.config/gh/hosts.yml"
+    cat > "$gui_tmp/Fake.app/Contents/MacOS/Fake" <<'APP'
+#!/bin/sh
+if cat "$HOME/.config/gh/hosts.yml" >/dev/null 2>&1; then
+    echo GH_READ_OK
+else
+    echo GH_READ_DENIED
+    exit 7
+fi
+APP
+    chmod +x "$gui_tmp/Fake.app/Contents/MacOS/Fake"
+
+    gui_out=$(cd "$gui_tmp/project" && HOME="$gui_tmp/home" "$BLASTSHIELD" --no-guard -p gui-app open "$gui_tmp/Fake.app" 2>&1) || true
+    if echo "$gui_out" | grep -q "GH_READ_OK"; then
+        pass "integration: GUI app launch skips auto-detected gh profile"
+    else
+        fail "integration: GUI app launch should read dummy gh config" "$gui_out"
+    fi
+
+    gui_explicit_out=$(cd "$gui_tmp/project" && HOME="$gui_tmp/home" "$BLASTSHIELD" --no-guard -p gh -p gui-app open "$gui_tmp/Fake.app" 2>&1) || true
+    if echo "$gui_explicit_out" | grep -q "GH_READ_DENIED"; then
+        pass "integration: GUI app launch still honors explicit gh profile"
+    else
+        fail "integration: explicit gh profile should still block dummy gh config" "$gui_explicit_out"
+    fi
+    rm -rf "$gui_tmp"
+
 else
     skip "integration tests: sandbox-exec not available (not on macOS)"
 fi
