@@ -485,8 +485,12 @@ HELP
         esac
     fi
 
-    # Auto-detect cloud profiles from current directory
-    if $auto_detect && [[ ${#command_args[@]} -gt 0 ]]; then
+    # Auto-detect cloud profiles from current directory. GUI app launches run
+    # long-lived user apps whose startup checks often need normal CLI auth
+    # config (for example gh hosts.yml), so only explicit profiles apply there.
+    if $auto_detect && $gui_app_launch; then
+        info "GUI app launch: skipping project profile auto-detection; use -p to opt into specific profiles"
+    elif $auto_detect && [[ ${#command_args[@]} -gt 0 ]]; then
         local detected
         detected=$(detect_cloud_profiles)
         for profile in $detected; do

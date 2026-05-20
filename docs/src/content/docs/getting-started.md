@@ -127,6 +127,8 @@ blastshield open /Applications/AppName.app
 blastshield -p gui-app open /Applications/Conductor.app
 ```
 
+When BlastShield detects a `.app` launch, it skips project profile auto-detection so app startup checks can use normal CLI auth configuration such as GitHub CLI's `hosts.yml`. Runtime guards still stay on the app's `PATH`. Add explicit profiles with `-p terraform`, `-p gh`, or similar if you want those profile-level credential restrictions for a GUI app.
+
 This works for:
 - Conductor (`/Applications/Conductor.app`)
 - Cursor (`/Applications/Cursor.app`)
