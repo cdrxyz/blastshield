@@ -19,6 +19,15 @@
 ;; Allow all mach* operations for Launch Services communication
 (allow mach*)
 
+;; WebKit views issue sandbox extensions for their helper processes.
+;; Conductor and other GUI agent apps can embed WebKit for auth and UI flows.
+(allow generic-issue-extension
+       (extension-class "com.apple.webkit.mach-bootstrap"))
+(allow iokit-issue-extension
+       (extension-class "com.apple.webkit.extension.iokit"))
+(allow mach-issue-extension
+       (extension-class "com.apple.webkit.extension.mach"))
+
 ;; ═══ Process Execution for GUI Apps ═══
 
 ;; Explicitly allow process-exec for GUI app binaries and helper tools
@@ -62,4 +71,3 @@
 
 ;; No writing to other users' homes
 (deny file-write* (regex "^/Users/(?!_HOME)"))
-

@@ -145,6 +145,13 @@ for profile_name in base secrets terraform gcloud aws azure kubectl gh install; 
     fi
 done
 
+# Test: gui-app profile includes WebKit extension issuance needed by embedded web views
+if grep -q 'com.apple.webkit.mach-bootstrap' "$PROFILES_DIR/gui-app.sb"; then
+    pass "profile 'gui-app': allows WebKit mach-bootstrap extension issuance"
+else
+    fail "profile 'gui-app': missing WebKit mach-bootstrap extension support" "Conductor startup reports this as a WebKit sandbox extension error"
+fi
+
 # Test: auto-detection function doesn't crash
 status_out2=$("$BLASTSHIELD" --status 2>&1) || true
 if echo "$status_out2" | grep -qE "(Available|Detected|Built-in|profiles)"; then
@@ -481,6 +488,43 @@ MINIMAL
         skip "integration: sandbox-exec test (may not work in this environment)"
     fi
     rm -f "$tmp_profile"
+
+    # Test: gui-app WebKit support can issue the mach-bootstrap sandbox extension
+    if command -v clang &>/dev/null; then
+        webkit_tmp=$(mktemp -d)
+        cat > "$webkit_tmp/issue-webkit-extension.c" <<'C'
+#include <stdint.h>
+#include <stdlib.h>
+
+extern char *sandbox_extension_issue_generic(const char *extension_class, uint32_t flags);
+
+int main(void) {
+    char *token = sandbox_extension_issue_generic("com.apple.webkit.mach-bootstrap", 0);
+    if (!token) {
+        return 2;
+    }
+    free(token);
+    return 0;
+}
+C
+        cat > "$webkit_tmp/profile.sb" <<'SB'
+(version 1)
+(deny default)
+(allow file-read* (subpath "/"))
+(allow process-exec (subpath "/"))
+(allow sysctl-read)
+(allow generic-issue-extension (extension-class "com.apple.webkit.mach-bootstrap"))
+SB
+        if clang "$webkit_tmp/issue-webkit-extension.c" -o "$webkit_tmp/issue-webkit-extension" &&
+            sandbox-exec -f "$webkit_tmp/profile.sb" "$webkit_tmp/issue-webkit-extension"; then
+            pass "integration: WebKit mach-bootstrap sandbox extension can be issued"
+        else
+            fail "integration: WebKit mach-bootstrap sandbox extension issuance failed"
+        fi
+        rm -rf "$webkit_tmp"
+    else
+        skip "integration: WebKit extension issuance (clang not available)"
+    fi
 
     # Test: interactive TUI terminal control works inside the sandbox
     if command -v script &>/dev/null; then
