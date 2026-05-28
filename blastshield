@@ -86,19 +86,33 @@ resolve_profile() {
 # Resolve a macOS .app bundle to its actual executable
 resolve_app_bundle() {
     local app_path="$1"
-    
+
     # Remove trailing slash if present
     app_path="${app_path%/}"
-    
+
+    # Prefer the bundle-declared executable. App names and executable names
+    # can differ in case or spelling, and GUI apps may inspect argv[0].
+    local bundle_exec=""
+    if [[ -f "${app_path}/Contents/Info.plist" ]] && command -v /usr/libexec/PlistBuddy &>/dev/null; then
+        bundle_exec=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "${app_path}/Contents/Info.plist" 2>/dev/null || true)
+        if [[ -n "$bundle_exec" ]]; then
+            local plist_exec_path="${app_path}/Contents/MacOS/${bundle_exec}"
+            if [[ -x "$plist_exec_path" ]]; then
+                echo "$plist_exec_path"
+                return 0
+            fi
+        fi
+    fi
+
     # Construct the executable path inside the bundle
     local exec_path="${app_path}/Contents/MacOS/$(basename "${app_path%.*}")"
-    
+
     # Check if the executable exists
     if [[ -x "$exec_path" ]]; then
         echo "$exec_path"
         return 0
     fi
-    
+
     # Fallback: find any executable in MacOS directory
     if [[ -d "${app_path}/Contents/MacOS" ]]; then
         local found
@@ -108,7 +122,7 @@ resolve_app_bundle() {
             return 0
         fi
     fi
-    
+
     return 1
 }
 
