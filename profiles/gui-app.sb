@@ -28,6 +28,16 @@
 (allow mach-issue-extension
        (extension-class "com.apple.webkit.extension.mach"))
 
+;; GUI apps commonly register for sleep/wake notifications and power assertions.
+(allow mach-lookup
+       (global-name
+           "com.apple.PowerManagement.control"
+           "com.apple.iokit.powerdxpc"))
+(allow iokit-open-service
+       (iokit-registry-entry-class "IOPMrootDomain"))
+(allow iokit-open-user-client
+       (iokit-user-client-class "RootDomainUserClient"))
+
 ;; ═══ Process Execution for GUI Apps ═══
 
 ;; Explicitly allow process-exec for GUI app binaries and helper tools

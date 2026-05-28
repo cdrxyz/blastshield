@@ -526,6 +526,40 @@ SB
         skip "integration: WebKit extension issuance (clang not available)"
     fi
 
+    # Test: gui-app profile permits normal GUI power-management registration
+    if command -v clang &>/dev/null; then
+        power_tmp=$(mktemp -d)
+        cat > "$power_tmp/power-registration.c" <<'C'
+#include <IOKit/IOMessage.h>
+#include <IOKit/pwr_mgt/IOPMLib.h>
+#include <mach/mach.h>
+
+static void callback(void *refCon, io_service_t service, natural_t messageType, void *messageArgument) {}
+
+int main(void) {
+    IONotificationPortRef notifyPort = NULL;
+    io_object_t notifier = IO_OBJECT_NULL;
+    io_connect_t root = IORegisterForSystemPower(NULL, &notifyPort, callback, &notifier);
+    if (root == MACH_PORT_NULL) {
+        return 2;
+    }
+    IODeregisterForSystemPower(&notifier);
+    IOServiceClose(root);
+    IONotificationPortDestroy(notifyPort);
+    return 0;
+}
+C
+        if clang "$power_tmp/power-registration.c" -framework IOKit -framework CoreFoundation -o "$power_tmp/power-registration" &&
+            "$BLASTSHIELD" --no-detect --no-guard -p gui-app "$power_tmp/power-registration" >/dev/null 2>&1; then
+            pass "integration: GUI app profile allows system power registration"
+        else
+            fail "integration: GUI app profile should allow system power registration"
+        fi
+        rm -rf "$power_tmp"
+    else
+        skip "integration: GUI power registration (clang not available)"
+    fi
+
     # Test: interactive TUI terminal control works inside the sandbox
     if command -v script &>/dev/null; then
         if tty_out=$(script -q /dev/null "$BLASTSHIELD" --no-detect /bin/stty -a 2>&1); then
@@ -658,6 +692,37 @@ HERMIT_TERRAFORM
         pass "integration: blastshield blocks Claude global state writes"
     fi
     rm -rf "$claude_home"
+
+    # Test: .app resolution honors CFBundleExecutable instead of guessing from app name
+    plist_app_tmp=$(mktemp -d)
+    mkdir -p "$plist_app_tmp/PlistExec.app/Contents/MacOS"
+    cat > "$plist_app_tmp/PlistExec.app/Contents/Info.plist" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleExecutable</key>
+    <string>actual-executable</string>
+</dict>
+</plist>
+PLIST
+    cat > "$plist_app_tmp/PlistExec.app/Contents/MacOS/PlistExec" <<'APP'
+#!/bin/sh
+echo GUESSED_EXEC
+APP
+    cat > "$plist_app_tmp/PlistExec.app/Contents/MacOS/actual-executable" <<'APP'
+#!/bin/sh
+echo PLIST_EXEC
+APP
+    chmod +x "$plist_app_tmp/PlistExec.app/Contents/MacOS/PlistExec" "$plist_app_tmp/PlistExec.app/Contents/MacOS/actual-executable"
+    if plist_app_out=$("$BLASTSHIELD" --no-detect --no-guard open "$plist_app_tmp/PlistExec.app" 2>&1) &&
+        echo "$plist_app_out" | grep -q "PLIST_EXEC" &&
+        ! echo "$plist_app_out" | grep -q "GUESSED_EXEC"; then
+        pass "integration: .app resolver honors CFBundleExecutable"
+    else
+        fail "integration: .app resolver should honor CFBundleExecutable" "$plist_app_out"
+    fi
+    rm -rf "$plist_app_tmp"
 
     # Test: auto-detection path handles an initially empty extra_profiles array
     if autodetect_out=$(cd "$REPO_DIR" && "$BLASTSHIELD" /usr/bin/true 2>&1); then
