@@ -775,6 +775,37 @@ APP
     fi
     rm -rf "$gui_tmp"
 
+    # Test: GUI app login-shell PATH discovery keeps runtime guards first
+    if [[ -x /bin/zsh ]]; then
+        gui_path_tmp=$(mktemp -d)
+        mkdir -p "$gui_path_tmp/home" "$gui_path_tmp/realbin" "$gui_path_tmp/PathProbe.app/Contents/MacOS"
+        cat > "$gui_path_tmp/realbin/gh" <<'GH'
+#!/bin/sh
+echo REAL_GH
+GH
+        chmod +x "$gui_path_tmp/realbin/gh"
+        cat > "$gui_path_tmp/home/.zprofile" <<ZPROFILE
+PATH="$gui_path_tmp/realbin:\$PATH"
+export PATH
+ZPROFILE
+        cat > "$gui_path_tmp/PathProbe.app/Contents/MacOS/PathProbe" <<'APP'
+#!/bin/sh
+/bin/zsh -lic 'command -v gh'
+APP
+        chmod +x "$gui_path_tmp/PathProbe.app/Contents/MacOS/PathProbe"
+
+        gui_path_out=$(HOME="$gui_path_tmp/home" SHELL=/bin/zsh PATH="$gui_path_tmp/realbin:$PATH" "$BLASTSHIELD" --no-detect open "$gui_path_tmp/PathProbe.app" 2>&1) || true
+        if echo "$gui_path_out" | grep -q '/blastshield.guard.' &&
+            ! echo "$gui_path_out" | grep -q "^$gui_path_tmp/realbin/gh$"; then
+            pass "integration: GUI app login-shell PATH keeps runtime guard first"
+        else
+            fail "integration: GUI app login-shell PATH should keep runtime guard first" "$gui_path_out"
+        fi
+        rm -rf "$gui_path_tmp"
+    else
+        skip "integration: GUI app login-shell PATH guard preservation (zsh unavailable)"
+    fi
+
 else
     skip "integration tests: sandbox-exec not available (not on macOS)"
 fi
