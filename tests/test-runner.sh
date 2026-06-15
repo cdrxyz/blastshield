@@ -27,6 +27,16 @@ skip() { ((SKIP++)); echo -e "  ${YELLOW}⊘ SKIP${NC} $1"; }
 
 section() { echo -e "\n${CYAN}═══ $1 ═══${NC}"; }
 
+wait_for_file() {
+    local file="$1"
+    local i
+    for i in {1..50}; do
+        [[ -f "$file" ]] && return 0
+        sleep 0.1
+    done
+    return 1
+}
+
 # ─── Profile Syntax Tests ────────────────────────────────────────────────
 
 section "Profile Syntax Validation"
@@ -696,6 +706,7 @@ HERMIT_TERRAFORM
     # Test: .app resolution honors CFBundleExecutable instead of guessing from app name
     plist_app_tmp=$(mktemp -d)
     mkdir -p "$plist_app_tmp/PlistExec.app/Contents/MacOS"
+    plist_marker="$plist_app_tmp/marker"
     cat > "$plist_app_tmp/PlistExec.app/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -706,23 +717,53 @@ HERMIT_TERRAFORM
 </dict>
 </plist>
 PLIST
-    cat > "$plist_app_tmp/PlistExec.app/Contents/MacOS/PlistExec" <<'APP'
+    cat > "$plist_app_tmp/PlistExec.app/Contents/MacOS/PlistExec" <<APP
 #!/bin/sh
-echo GUESSED_EXEC
+echo GUESSED_EXEC > "$plist_marker"
+sleep 1
 APP
-    cat > "$plist_app_tmp/PlistExec.app/Contents/MacOS/actual-executable" <<'APP'
+    cat > "$plist_app_tmp/PlistExec.app/Contents/MacOS/actual-executable" <<APP
 #!/bin/sh
-echo PLIST_EXEC
+echo PLIST_EXEC > "$plist_marker"
+sleep 1
 APP
     chmod +x "$plist_app_tmp/PlistExec.app/Contents/MacOS/PlistExec" "$plist_app_tmp/PlistExec.app/Contents/MacOS/actual-executable"
     if plist_app_out=$("$BLASTSHIELD" --no-detect --no-guard open "$plist_app_tmp/PlistExec.app" 2>&1) &&
-        echo "$plist_app_out" | grep -q "PLIST_EXEC" &&
-        ! echo "$plist_app_out" | grep -q "GUESSED_EXEC"; then
+        wait_for_file "$plist_marker" &&
+        grep -q "PLIST_EXEC" "$plist_marker"; then
         pass "integration: .app resolver honors CFBundleExecutable"
     else
         fail "integration: .app resolver should honor CFBundleExecutable" "$plist_app_out"
     fi
     rm -rf "$plist_app_tmp"
+
+    # Test: GUI app launches detach like `open`, while the app keeps running
+    detached_tmp=$(mktemp -d)
+    mkdir -p "$detached_tmp/Detached.app/Contents/MacOS"
+    detached_pid_file="$detached_tmp/pid"
+    detached_done_file="$detached_tmp/done"
+    cat > "$detached_tmp/Detached.app/Contents/MacOS/Detached" <<APP
+#!/bin/sh
+echo "\$\$" > "$detached_pid_file"
+sleep 5
+echo done > "$detached_done_file"
+APP
+    chmod +x "$detached_tmp/Detached.app/Contents/MacOS/Detached"
+    detached_start=$(date +%s)
+    if detached_out=$("$BLASTSHIELD" --no-detect --no-guard open "$detached_tmp/Detached.app" 2>&1) &&
+        wait_for_file "$detached_pid_file"; then
+        detached_elapsed=$(($(date +%s) - detached_start))
+        detached_pid=$(cat "$detached_pid_file")
+        if [[ $detached_elapsed -lt 5 ]] && kill -0 "$detached_pid" 2>/dev/null; then
+            pass "integration: GUI app launch detaches while app keeps running"
+        else
+            fail "integration: GUI app launch should detach while app keeps running" "$detached_out"
+        fi
+        kill "$detached_pid" 2>/dev/null || true
+    else
+        fail "integration: GUI app launch should detach" "$detached_out"
+    fi
+    rm -rf "$detached_tmp"
 
     # Test: auto-detection path handles an initially empty extra_profiles array
     if autodetect_out=$(cd "$REPO_DIR" && "$BLASTSHIELD" /usr/bin/true 2>&1); then
@@ -748,27 +789,32 @@ Second: $explicit_out2"
     # Test: GUI app launches do not auto-detect project profiles that block app startup checks
     gui_tmp=$(mktemp -d)
     mkdir -p "$gui_tmp/home/.config/gh" "$gui_tmp/project/.github" "$gui_tmp/Fake.app/Contents/MacOS"
+    gui_marker="$gui_tmp/marker"
     printf 'github.com:\n  oauth_token: dummy\n' > "$gui_tmp/home/.config/gh/hosts.yml"
-    cat > "$gui_tmp/Fake.app/Contents/MacOS/Fake" <<'APP'
+    cat > "$gui_tmp/Fake.app/Contents/MacOS/Fake" <<APP
 #!/bin/sh
-if cat "$HOME/.config/gh/hosts.yml" >/dev/null 2>&1; then
-    echo GH_READ_OK
+if cat "\$HOME/.config/gh/hosts.yml" >/dev/null 2>&1; then
+    echo GH_READ_OK > "$gui_marker"
+    sleep 1
 else
-    echo GH_READ_DENIED
+    echo GH_READ_DENIED > "$gui_marker"
+    sleep 1
     exit 7
 fi
 APP
     chmod +x "$gui_tmp/Fake.app/Contents/MacOS/Fake"
 
+    rm -f "$gui_marker"
     gui_out=$(cd "$gui_tmp/project" && HOME="$gui_tmp/home" "$BLASTSHIELD" --no-guard -p gui-app open "$gui_tmp/Fake.app" 2>&1) || true
-    if echo "$gui_out" | grep -q "GH_READ_OK"; then
+    if wait_for_file "$gui_marker" && grep -q "GH_READ_OK" "$gui_marker"; then
         pass "integration: GUI app launch skips auto-detected gh profile"
     else
         fail "integration: GUI app launch should read dummy gh config" "$gui_out"
     fi
 
+    rm -f "$gui_marker"
     gui_explicit_out=$(cd "$gui_tmp/project" && HOME="$gui_tmp/home" "$BLASTSHIELD" --no-guard -p gh -p gui-app open "$gui_tmp/Fake.app" 2>&1) || true
-    if echo "$gui_explicit_out" | grep -q "GH_READ_DENIED"; then
+    if wait_for_file "$gui_marker" && grep -q "GH_READ_DENIED" "$gui_marker"; then
         pass "integration: GUI app launch still honors explicit gh profile"
     else
         fail "integration: explicit gh profile should still block dummy gh config" "$gui_explicit_out"
@@ -779,6 +825,7 @@ APP
     if [[ -x /bin/zsh ]]; then
         gui_path_tmp=$(mktemp -d)
         mkdir -p "$gui_path_tmp/home" "$gui_path_tmp/realbin" "$gui_path_tmp/PathProbe.app/Contents/MacOS"
+        gui_path_marker="$gui_path_tmp/marker"
         cat > "$gui_path_tmp/realbin/gh" <<'GH'
 #!/bin/sh
 echo REAL_GH
@@ -788,15 +835,18 @@ GH
 PATH="$gui_path_tmp/realbin:\$PATH"
 export PATH
 ZPROFILE
-        cat > "$gui_path_tmp/PathProbe.app/Contents/MacOS/PathProbe" <<'APP'
+        cat > "$gui_path_tmp/PathProbe.app/Contents/MacOS/PathProbe" <<APP
 #!/bin/sh
-/bin/zsh -lic 'command -v gh'
+/bin/zsh -lic 'command -v gh' > "$gui_path_marker.tmp"
+mv "$gui_path_marker.tmp" "$gui_path_marker"
+sleep 1
 APP
         chmod +x "$gui_path_tmp/PathProbe.app/Contents/MacOS/PathProbe"
 
         gui_path_out=$(HOME="$gui_path_tmp/home" SHELL=/bin/zsh PATH="$gui_path_tmp/realbin:$PATH" "$BLASTSHIELD" --no-detect open "$gui_path_tmp/PathProbe.app" 2>&1) || true
-        if echo "$gui_path_out" | grep -q '/blastshield.guard.' &&
-            ! echo "$gui_path_out" | grep -q "^$gui_path_tmp/realbin/gh$"; then
+        if wait_for_file "$gui_path_marker" &&
+            grep -q '/blastshield.guard.' "$gui_path_marker" &&
+            ! grep -q "^$gui_path_tmp/realbin/gh$" "$gui_path_marker"; then
             pass "integration: GUI app login-shell PATH keeps runtime guard first"
         else
             fail "integration: GUI app login-shell PATH should keep runtime guard first" "$gui_path_out"

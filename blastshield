@@ -289,6 +289,56 @@ run_sandboxed() {
     return $exit_code
 }
 
+run_sandboxed_gui_app() {
+    local profile_file="$1"
+    shift
+    local command=("$@")
+
+    if [[ ${#command[@]} -eq 0 ]]; then
+        die "GUI app launch requires a command"
+    fi
+
+    if ! command -v sandbox-exec &>/dev/null; then
+        die "sandbox-exec not found. This tool requires macOS."
+    fi
+
+    local log_file app_pid guard_dir shell_env_dir profile_cleanup
+    log_file=$(mktemp "${TMPDIR:-/tmp}/blastshield.gui-app.log.XXXXXX")
+    guard_dir="${BLASTSHIELD_TMP_GUARD_DIR:-}"
+    shell_env_dir="${BLASTSHIELD_TMP_SHELL_ENV_DIR:-}"
+    profile_cleanup="$profile_file"
+
+    info "Launching GUI app in sandbox with profile: $(basename "$profile_file")"
+    info "Command: ${command[*]}"
+
+    sandbox-exec -f "$profile_file" -- "${command[@]}" >>"$log_file" 2>&1 &
+    app_pid=$!
+    sleep 0.2
+
+    if [[ -z "$app_pid" ]] || ! kill -0 "$app_pid" 2>/dev/null; then
+        warn "GUI app exited before launch completed; logs: $log_file"
+        return 1
+    fi
+
+    info "GUI app launched in sandbox as PID $app_pid"
+    info "GUI app logs: $log_file"
+
+    if [[ -n "$profile_cleanup" || -n "$guard_dir" || -n "$shell_env_dir" ]]; then
+        (
+            while kill -0 "$app_pid" 2>/dev/null; do
+                sleep 5
+            done
+            [[ -n "$profile_cleanup" ]] && rm -f "$profile_cleanup"
+            [[ -n "$guard_dir" ]] && rm -rf "$guard_dir"
+            [[ -n "$shell_env_dir" ]] && rm -rf "$shell_env_dir"
+        ) >/dev/null 2>&1 &
+
+        BLASTSHIELD_TMP_PROFILE=""
+        BLASTSHIELD_TMP_GUARD_DIR=""
+        BLASTSHIELD_TMP_SHELL_ENV_DIR=""
+    fi
+}
+
 setup_runtime_guards() {
     if [[ ! -x "$GUARD_SCRIPT" ]]; then
         warn "blastshield-guard not found; command-argument filtering disabled"
@@ -611,7 +661,11 @@ HELP
         # Run with cleaned env inside sandbox
         env -i "${env_args[@]}" run_sandboxed "$tmp_profile" "${command_args[@]}"
     else
-        run_sandboxed "$tmp_profile" "${command_args[@]}"
+        if $gui_app_launch; then
+            run_sandboxed_gui_app "$tmp_profile" "${command_args[@]}"
+        else
+            run_sandboxed "$tmp_profile" "${command_args[@]}"
+        fi
     fi
 }
 
