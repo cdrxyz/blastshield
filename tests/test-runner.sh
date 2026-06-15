@@ -570,6 +570,50 @@ C
         skip "integration: GUI power registration (clang not available)"
     fi
 
+    # Test: gui-app profile permits Metal device enumeration used by GPU renderers
+    if command -v xcrun &>/dev/null &&
+        metal_clang=$(xcrun --find clang 2>/dev/null) &&
+        metal_sdk=$(xcrun --sdk macosx --show-sdk-path 2>/dev/null); then
+        metal_tmp=$(mktemp -d)
+        cat > "$metal_tmp/metal-probe.m" <<'OBJC'
+#import <Foundation/Foundation.h>
+#import <Metal/Metal.h>
+
+int main(void) {
+    @autoreleasepool {
+        NSArray<id<MTLDevice>> *devices = MTLCopyAllDevices();
+        return devices.count > 0 ? 0 : 2;
+    }
+}
+OBJC
+        if metal_compile_out=$("$metal_clang" -isysroot "$metal_sdk" -fobjc-arc -framework Foundation -framework Metal "$metal_tmp/metal-probe.m" -o "$metal_tmp/metal-probe" 2>&1); then
+            if "$metal_tmp/metal-probe" >/dev/null 2>&1; then
+                if metal_out=$("$BLASTSHIELD" --no-detect --no-guard -p gui-app "$metal_tmp/metal-probe" 2>&1); then
+                    pass "integration: GUI app profile allows Metal device enumeration"
+                else
+                    fail "integration: GUI app profile should allow Metal device enumeration" "$metal_out"
+                fi
+            else
+                skip "integration: Metal device enumeration (no Metal devices visible outside sandbox)"
+            fi
+        else
+            skip "integration: Metal device enumeration (Metal SDK compile failed: $metal_compile_out)"
+        fi
+        rm -rf "$metal_tmp"
+    else
+        skip "integration: Metal device enumeration (xcrun clang or macOS SDK not available)"
+    fi
+
+    # Test: GUI apps can write normal per-user app logs
+    gui_logs_home=$(mktemp -d)
+    if gui_logs_out=$(HOME="$gui_logs_home" "$BLASTSHIELD" --no-detect --no-guard -p gui-app /bin/sh -c 'mkdir -p "$HOME/Library/Logs/Zed" && printf ok > "$HOME/Library/Logs/Zed/Zed.log"' 2>&1) &&
+        [[ "$(cat "$gui_logs_home/Library/Logs/Zed/Zed.log" 2>/dev/null)" == "ok" ]]; then
+        pass "integration: GUI app profile allows user Library Logs writes"
+    else
+        fail "integration: GUI app profile should allow user Library Logs writes" "$gui_logs_out"
+    fi
+    rm -rf "$gui_logs_home"
+
     # Test: interactive TUI terminal control works inside the sandbox
     if command -v script &>/dev/null; then
         if tty_out=$(script -q /dev/null "$BLASTSHIELD" --no-detect /bin/stty -a 2>&1); then

@@ -38,6 +38,52 @@
 (allow iokit-open-user-client
        (iokit-user-client-class "RootDomainUserClient"))
 
+;; GUI renderers such as GPUI/Zed, WebKit, CoreAnimation, and Metal need
+;; display/GPU device enumeration. Keep this scoped to graphics surfaces,
+;; framebuffers, and Apple Silicon/IOAccelerator GPU user clients.
+(allow mach-lookup
+       (global-name
+           "com.apple.CARenderServer"
+           "com.apple.CoreDisplay.master"
+           "com.apple.CoreDisplay.Notification"
+           "com.apple.cvmsServ"
+           "com.apple.gpumemd.source"
+           "com.apple.lsd.mapdb"))
+(allow file-read*
+       (subpath "/private/var/db/CVMS")
+       (subpath "/Library/GPUBundles"))
+(allow iokit-open-service
+       (iokit-registry-entry-class
+           "AGPM"
+           "AppleGraphicsControl"
+           "AppleGraphicsPolicy"
+           "IOAccelerator"
+           "IOFramebuffer"
+           "IOSurfaceRoot")
+       (iokit-registry-entry-class-prefix "AGXAcceleratorG"))
+(allow iokit-open-user-client
+       (iokit-connection "IOAccelerator")
+       (iokit-user-client-class
+           "AGPMClient"
+           "AGXCommandQueue"
+           "AGXDevice"
+           "AGXDeviceUserClient"
+           "AGXGLContext"
+           "AGXSharedUserClient"
+           "AppleGraphicsControlClient"
+           "AppleGraphicsPolicyClient"
+           "AppleMGPUPowerControlClient"
+           "IOAccelerationUserClient"
+           "IOAccelContext"
+           "IOAccelContext2"
+           "IOAccelDevice"
+           "IOAccelDevice2"
+           "IOAccelSharedUserClient"
+           "IOAccelSharedUserClient2"
+           "IOSurfaceAcceleratorClient"
+           "IOSurfaceRootUserClient"
+           "IOSurfaceSendRight"))
+
 ;; ═══ Process Execution for GUI Apps ═══
 
 ;; Explicitly allow process-exec for GUI app binaries and helper tools
@@ -69,6 +115,9 @@
 
 ;; Write access to user's Preferences (app settings)
 (allow file-write* (subpath "_HOME/Library/Preferences"))
+
+;; Write access to user's Logs (GUI apps commonly log under ~/Library/Logs)
+(allow file-write* (subpath "_HOME/Library/Logs"))
 
 ;; ═══ Deny: Dangerous Write Locations ═══
 
