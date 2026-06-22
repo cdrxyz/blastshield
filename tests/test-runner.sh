@@ -887,6 +887,47 @@ APP
     fi
     rm -rf "$gui_tmp"
 
+    # Test: Conductor app launches can write Conductor-managed workspace roots
+    conductor_tmp=$(mktemp -d)
+    conductor_tmp=$(cd "$conductor_tmp" && pwd -P)
+    mkdir -p "$conductor_tmp/home/conductor/workspaces/current" \
+        "$conductor_tmp/home/conductor/repos/root" \
+        "$conductor_tmp/FakeConductor.app/Contents/MacOS"
+    conductor_marker="$conductor_tmp/marker"
+    conductor_workspace_probe="$conductor_tmp/home/conductor/workspaces/current/probe"
+    conductor_repo_probe="$conductor_tmp/home/conductor/repos/root/probe"
+    cat > "$conductor_tmp/FakeConductor.app/Contents/Info.plist" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.conductor.app</string>
+    <key>CFBundleExecutable</key>
+    <string>FakeConductor</string>
+</dict>
+</plist>
+PLIST
+    cat > "$conductor_tmp/FakeConductor.app/Contents/MacOS/FakeConductor" <<APP
+#!/bin/sh
+printf workspace > "$conductor_workspace_probe" &&
+    printf repo > "$conductor_repo_probe" &&
+    printf done > "$conductor_marker"
+sleep 1
+APP
+    chmod +x "$conductor_tmp/FakeConductor.app/Contents/MacOS/FakeConductor"
+
+    conductor_out=$(HOME="$conductor_tmp/home" "$BLASTSHIELD" --no-detect --no-guard open "$conductor_tmp/FakeConductor.app" 2>&1) || true
+    if wait_for_file "$conductor_marker" &&
+        [[ "$(cat "$conductor_workspace_probe" 2>/dev/null)" == "workspace" ]] &&
+        [[ "$(cat "$conductor_repo_probe" 2>/dev/null)" == "repo" ]] &&
+        echo "$conductor_out" | grep -q "auto-adding 'conductor-app' profile"; then
+        pass "integration: Conductor app launch allows Conductor workspace writes"
+    else
+        fail "integration: Conductor app launch should allow Conductor workspace writes" "$conductor_out"
+    fi
+    rm -rf "$conductor_tmp"
+
     # Test: GUI app login-shell PATH discovery keeps runtime guards first
     if [[ -x /bin/zsh ]]; then
         gui_path_tmp=$(mktemp -d)

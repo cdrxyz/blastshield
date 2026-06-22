@@ -1,0 +1,26 @@
+;; blastshield Conductor app profile - permits Conductor-managed workspace edits
+;;
+;; Applied automatically when launching the Conductor app bundle
+;; (CFBundleIdentifier: com.conductor.app). Conductor creates and manages
+;; workspaces outside the directory where the GUI app was launched, and agents
+;; inherit the GUI app sandbox, so those roots need explicit write access.
+;;
+;; Parameters injected by wrapper: _HOME, _PROJECT_DIR, _TMPDIR
+
+(version 1)
+
+;; Allow Conductor and its agents to edit managed roots.
+(allow file-write* (subpath "_HOME/conductor/workspaces"))
+(allow file-write* (subpath "_HOME/conductor/repos"))
+
+;; Allow Conductor user-level settings/state outside Application Support.
+(allow file-write* (subpath "_HOME/.conductor"))
+
+;; Keep the same persistence-sensitive project protections under all
+;; Conductor-managed roots, not only the launch-time project directory.
+(deny file-write*
+      (regex #"^_HOME/conductor/(workspaces|repos)/.*/\.git/hooks(/|$)")
+      (regex #"^_HOME/conductor/(workspaces|repos)/.*/\.git/config$"))
+(deny file-write*
+      (regex #"^_HOME/conductor/(workspaces|repos)/.*/(\.vscode|\.idea)(/|$)")
+      (regex #"^_HOME/conductor/(workspaces|repos)/.*/\.mcp\.json$"))
