@@ -1,6 +1,6 @@
 ---
 title: Profiles
-description: All 9 BlastShield profiles — base, secrets, terraform, gcloud, aws, azure, kubectl, gh, install — enforcing read-only cloud access and blocking arbitrary dependency installation.
+description: All 11 BlastShield profiles — base, secrets, terraform, gcloud, aws, azure, kubectl, gh, install, gui-app, conductor-app — enforcing read-only cloud access, GUI compatibility, and Conductor workspace policy.
 ---
 
 ## Read-Only Philosophy
@@ -13,7 +13,7 @@ This is by design: the agent plans, **you** execute.
 
 Profiles are [SBPL](https://reverse.put.as/wp-content/uploads/2011/09/Apple-Sandbox-Guide-v1.0.pdf) (Seatbelt Profile Language) files in `profiles/`. They compose by **intersection** — every deny rule from every loaded profile is enforced.
 
-For `.app` launches, BlastShield uses GUI compatibility mode: it skips the always-loaded `secrets` profile and skips project profile auto-detection, because long-lived GUI apps often run startup checks that need normal CLI auth files. Explicit `-p` profiles still apply.
+For `.app` launches, BlastShield uses GUI compatibility mode: it skips the always-loaded `secrets` profile and skips project profile auto-detection, because long-lived GUI apps often run startup checks that need normal CLI auth files. BlastShield automatically adds `gui-app` for `.app` bundles and `conductor-app` for Conductor's `com.conductor.app` bundle id. Explicit `-p` profiles still apply.
 
 ### Built-in Profiles
 
@@ -28,6 +28,8 @@ For `.app` launches, BlastShield uses GUI compatibility mode: it skips the alway
 | `kubectl` | Auto | Kubeconfig write protection, SA token denial |
 | `gh` | Auto | GitHub auth protection, workflow file locks |
 | `install` | Auto | Package manager install blocking, lockfile protection, global dir protection |
+| `gui-app` | `.app` | GUI app compatibility for Launch Services-style apps |
+| `conductor-app` | Conductor `.app` | Conductor-managed workspace and repo writes |
 
 ### Custom Profiles
 
@@ -203,13 +205,57 @@ Prevents AI agents from installing new dependencies without human review. Adding
 
 ---
 
+## gui-app
+
+Enables macOS GUI app launches while keeping child processes inside the BlastShield sandbox. BlastShield auto-adds this profile when it detects `open /path/to/App.app`.
+
+| Allowed | Why |
+|---------|-----|
+| GUI app bundle reads | Locate and execute app bundle binaries |
+| WebKit sandbox extension issuance | Embedded auth/UI web views |
+| Power registration | Normal sleep/wake notification setup |
+| Metal/CoreAnimation/IOSurface GPU access | Metal-backed GUI rendering, including Zed |
+| `~/Library/Application Support`, `~/Library/Caches`, `~/Library/Preferences`, `~/Library/Logs` writes | Normal per-user app state and logs |
+
+For GUI app launches, BlastShield also keeps runtime guards ahead of user shell paths, even when the app rebuilds `PATH` through a login shell. In interactive terminals, GUI app logs are streamed until the app exits or you press `Ctrl-C`.
+
+**Auto-detection trigger:** any `.app` bundle passed through `open`
+
+## conductor-app
+
+Supports Conductor as a first-class GUI app launch target. BlastShield auto-adds this profile when the app bundle identifier is `com.conductor.app`.
+
+| Allowed | Why |
+|---------|-----|
+| `~/conductor/workspaces` writes | Conductor agents edit workspace files |
+| `~/conductor/repos` writes | Conductor manages root checkouts and shared repo state |
+| `~/.conductor` writes | Conductor user settings and local app state |
+
+The profile still blocks persistence-sensitive writes under Conductor-managed roots:
+
+| Blocked | Why |
+|---------|-----|
+| `.git/hooks` | Prevent persistent command execution through hooks |
+| `.git/config` | Prevent repository-level persistence and credential helper changes |
+| `.vscode`, `.idea` | Prevent IDE configuration planting |
+| `.mcp.json` | Prevent tool/MCP configuration planting |
+
+**Auto-detection trigger:** `.app` bundle with `CFBundleIdentifier = com.conductor.app`
+
+See the [Conductor guide](../conductor/) for the supported launch workflow.
+
+---
+
 ## Profile Loading Order
 
 Profiles are loaded in this order:
 
 1. `base` — always (deny-by-default foundation)
 2. `secrets` — always (credential and SSH key protection)
-3. Auto-detected profiles — based on project directory contents
-4. Explicitly specified profiles — via `-p` flag
+3. GUI compatibility profiles — `gui-app` for `.app` bundles, plus `conductor-app` for Conductor
+4. Auto-detected profiles — based on project directory contents
+5. Explicitly specified profiles — via `-p` flag
+
+For GUI app launches, `secrets` is skipped and project profile auto-detection is skipped. Explicit profiles still apply.
 
 All deny rules from all profiles are enforced. Allow rules must pass every profile's checks. This means adding more profiles can only make the sandbox **more restrictive**, never less.

@@ -36,4 +36,14 @@ brew install cdrxyz/tap/blastshield
 blastshield claude --dangerously-skip-permissions
 ```
 
+## Conductor Support
+
+BlastShield supports Conductor as a sandboxed macOS GUI app. Launch Conductor through BlastShield and Conductor-launched Claude Code and Codex agents inherit the sandbox and runtime guards:
+
+```bash
+blastshield -p gui-app open /Applications/Conductor.app
+```
+
+See the [Conductor guide](./conductor/) for the supported workflow and profile details.
+
 For manual installation, see [Getting Started](./getting-started/).

@@ -111,7 +111,7 @@ blastshield -p aws -- safehouse codex --full-auto
 blastshield -p kubectl -- safehouse opencode
 ```
 
-### With GUI Agent Apps (Conductor, Cursor, IntelliJ, VSCode)
+### With GUI Agent Apps (Conductor, Zed, Cursor, IntelliJ, VSCode)
 
 Many AI agent IDEs and launcher apps run as GUI applications but still spawn agent CLIs as child processes. BlastShield can protect those sessions by wrapping the app's process using the macOS `open` command.
 
@@ -121,16 +121,23 @@ Many AI agent IDEs and launcher apps run as GUI applications but still spawn age
 blastshield open /Applications/AppName.app
 ```
 
-**Note:** For GUI agent apps, add the `gui-app` profile to grant the additional filesystem and IPC permissions they need:
+When BlastShield detects a `.app` launch, it automatically adds the `gui-app` profile, resolves the real bundle executable, and runs it under the sandbox. Passing `-p gui-app` explicitly is still fine and makes the intent clear:
 
 ```bash
 blastshield -p gui-app open /Applications/Conductor.app
+```
+
+For interactive terminals, BlastShield streams the GUI app log and keeps the terminal open. Press `Ctrl-C` to stop following logs; the app keeps running. Use `--detach` for scripts or terminal profiles that should return immediately:
+
+```bash
+blastshield --detach -p gui-app open /Applications/Conductor.app
 ```
 
 When BlastShield detects a `.app` launch, it skips project profile auto-detection so app startup checks can use normal CLI auth configuration such as GitHub CLI's `hosts.yml`. Runtime guards still stay on the app's `PATH`. Add explicit profiles with `-p terraform`, `-p gh`, or similar if you want those profile-level credential restrictions for a GUI app.
 
 This works for:
 - Conductor (`/Applications/Conductor.app`)
+- Zed (`/Applications/Zed.app`)
 - Cursor (`/Applications/Cursor.app`)
 - IntelliJ IDEA (`/Applications/IntelliJ\ IDEA.app`)
 - VSCode (`/Applications/Visual\ Studio\ Code.app`)
@@ -152,14 +159,11 @@ blastshield opencode
 **Conductor-specific example:**
 
 ```bash
-# Wrap Conductor itself (the GUI app) with GUI app permissions
+# Wrap Conductor itself. BlastShield also auto-adds the conductor-app profile.
 blastshield -p gui-app open /Applications/Conductor.app
-
-# OR: if Conductor lets you customize the agent command, point it to BlastShield
-# Example agent command in Conductor settings:
-blastshield -p gui-app codex --full-auto
-blastshield -p gui-app claude --dangerously-skip-permissions
 ```
+
+Conductor is first-class supported. The `conductor-app` profile allows Conductor-launched agents to write under `~/conductor/workspaces`, `~/conductor/repos`, and `~/.conductor`, while keeping sensitive persistence paths protected. See the [Conductor guide](../conductor/) for details.
 
 ### Guard Installation
 
@@ -288,7 +292,7 @@ Blocks AI agents from installing new dependencies without human review. Protects
 ```
 ┌─────────────────────────────────────────────────┐
 │                  AI Agent                        │
-│  (Claude Code, Codex, OpenCode, Cursor, Gemini, etc.)    │
+│  (Claude Code, Codex, Conductor, Cursor, Gemini, etc.)   │
 └──────────────────┬──────────────────────────────┘
                    │
     ┌──────────────┼──────────────────┐
