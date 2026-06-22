@@ -5,6 +5,16 @@ description: Recent BlastShield releases and the fixes included in each version.
 
 ## Unreleased
 
+- Allows Gradle builds to use `~/.gradle` cache, native, daemon, and wrapper state.
+- Keeps Gradle user-level init/config files such as `~/.gradle/gradle.properties` and `~/.gradle/init.d` protected.
+- Allows read-only GitHub CLI commands with IDs and JSON flags, including `gh pr view`, `gh pr checks`, and `gh run view/watch`.
+- Allows read-only `gh api` GET/HEAD requests while continuing to block mutating API methods.
+- Leaves Gradle commands unguarded by `blastshield-guard`.
+
+## v0.1.16 — 2026-06-22
+
+Release commit: `3a0a226`
+
 - Allows sandboxed GUI apps to open external links and documents through Launch Services.
 - Fixes clicking GitHub links and other external URLs from Conductor running under BlastShield.
 

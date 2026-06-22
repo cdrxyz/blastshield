@@ -40,6 +40,10 @@
 ;; Write to user cache (package managers need this)
 (allow file-write* (subpath "_HOME/.cache"))
 
+;; Gradle builds need user-level cache/native/daemon state under ~/.gradle.
+;; Keep persistent Gradle init/config files protected below.
+(allow file-write* (subpath "_HOME/.gradle"))
+
 ;; Codex runtime state. Keep auth/config/rules read-only below.
 (allow file-write* (subpath "_HOME/.codex"))
 
@@ -59,6 +63,14 @@
 
 ;; No writing to MCP config (prevents agent adding its own tools)
 (deny file-write* (subpath "_PROJECT_DIR/.mcp.json"))
+
+;; No writing to Gradle user-level init/config files, which can contain
+;; credentials or persistent build logic. Cache/state under ~/.gradle stays
+;; writable for normal builds.
+(deny file-write* (literal "_HOME/.gradle/gradle.properties"))
+(deny file-write* (literal "_HOME/.gradle/init.gradle"))
+(deny file-write* (literal "_HOME/.gradle/init.gradle.kts"))
+(deny file-write* (subpath "_HOME/.gradle/init.d"))
 
 ;; No writing to Codex auth, configuration, or extension points
 (deny file-write* (literal "_HOME/.codex/auth.json"))

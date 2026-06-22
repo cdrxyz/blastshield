@@ -41,7 +41,7 @@ gcloud:list,describe,get,print-access-token,auth,status,version,config,help \
 aws:ec2_describe-*,ec2_list-*,s3_ls*,s3_cp*,s3_presign*,sts_get-caller-identity,logs_describe-*,logs_get-*,logs_filter-log-events,cloudformation_validate-template,dynamodb_scan*,dynamodb_query*,dynamodb_get-item,iam_list-*,iam_get-*,lambda_list-*,lambda_invoke* \
 az:list,show,version,help,account_show,account_list,find \
 kubectl:get,describe,logs,top,events,api-resources,api-versions,explain,auth_can-i,config_view,config_get-contexts,rollout_status,rollout_history,version \
-gh:list,view,repo_clone,repo_fork,repo_view,pr_list,pr_view,pr_diff,pr_checkout,issue_list,issue_view,release_list,release_view,release_download,workflow_list,workflow_view,auth_status,api_graphql,help,version \
+gh:list,view,repo_clone*,repo_fork*,repo_view*,pr_list*,pr_view*,pr_diff*,pr_checkout*,pr_checks*,pr_status*,issue_list*,issue_view*,release_list*,release_view*,release_download*,workflow_list*,workflow_view*,run_list*,run_view*,run_watch*,auth_status*,api*,help,version \
 helm:list,status,history,show,search,version,repo_list,repo_update \
 npm:list,ls,view,info,outdated,search,version,help,pack,why,explain,doctor,audit,dedupe,diff,fund,root,prefix,config_list,config_get,repo_docs \
 yarn:list,ls,info,why,outdated,search,version,help,pack,dedupe,dir,config,plugin_list,npm_info,npm_tag,npm_view \
@@ -217,6 +217,55 @@ matches_pattern() {
     return 1
 }
 
+is_readonly_gh_api() {
+    local args=("$@")
+    local method=""
+    local has_request_data=false
+    local i=0
+
+    while [[ $i -lt ${#args[@]} ]]; do
+        case "${args[$i]}" in
+            --method=*)
+                method="${args[$i]#--method=}"
+                ;;
+            -X*)
+                if [[ "${args[$i]}" == "-X" ]]; then
+                    if [[ $((i + 1)) -lt ${#args[@]} ]]; then
+                        method="${args[$((i + 1))]}"
+                        ((i++))
+                    fi
+                else
+                    method="${args[$i]#-X}"
+                fi
+                ;;
+            --method)
+                if [[ $((i + 1)) -lt ${#args[@]} ]]; then
+                    method="${args[$((i + 1))]}"
+                    ((i++))
+                fi
+                ;;
+            -f|-F|--field|--raw-field|--input)
+                has_request_data=true
+                if [[ $((i + 1)) -lt ${#args[@]} ]]; then
+                    ((i++))
+                fi
+                ;;
+            -f*|-F*|--field=*|--raw-field=*|--input=*)
+                has_request_data=true
+                ;;
+        esac
+        ((i++))
+    done
+
+    if [[ -z "$method" ]]; then
+        $has_request_data && return 1
+        return 0
+    fi
+
+    method=$(printf '%s' "$method" | tr '[:lower:]' '[:upper:]')
+    [[ "$method" == "GET" || "$method" == "HEAD" ]]
+}
+
 # Check if a command is read-only (allowed without auth)
 is_readonly() {
     local cli="$1"
@@ -225,6 +274,14 @@ is_readonly() {
     subcmd=$(get_subcommand "$@")
 
     [[ -z "$subcmd" ]] && return 1
+
+    if [[ "$cli" == "gh" ]]; then
+        local normalized_subcmd="${subcmd// /_}"
+        if [[ "$normalized_subcmd" == "api" || "$normalized_subcmd" == api_* ]]; then
+            is_readonly_gh_api "$@"
+            return $?
+        fi
+    fi
 
     local patterns
     patterns=$(get_readonly_patterns "$cli") || return 1
@@ -460,7 +517,8 @@ GUARDED CLIS:
     kubectl:    apply, create, delete, exec → blocked
                 get, describe, logs, top → allowed
     gh:         delete, merge, close, edit → blocked
-                list, view, clone, fork → allowed
+                list, view, clone, fork, pr checks → allowed
+                run list/view/watch, api GET/HEAD → allowed
     helm:       install, upgrade, delete → blocked
                 list, status, history, show → allowed
     npm:        install, ci, add, uninstall → blocked

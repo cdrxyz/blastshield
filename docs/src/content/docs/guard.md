@@ -127,12 +127,13 @@ For AI agents, add this to their environment configuration.
 | Read-Only (auto-allow) | Mutating (requires auth) |
 |------------------------|-------------------------|
 | `repo list/view/clone/fork` | `repo delete/edit/rename` |
-| `pr list/view/diff/checkout` | `pr merge/close` |
-| `issue list/view` | `issue close` |
+| `pr list/view/diff/checks/status/checkout` | `pr create/merge/close/edit` |
+| `issue list/view` | `issue create/close/comment` |
 | `release list/view/download` | `release delete` |
 | `workflow list/view` | `workflow disable/enable` |
-| `auth status` | `run cancel` |
-| | `api -X DELETE/PUT/PATCH` |
+| `run list/view/watch` | `run cancel` |
+| `api` with GET/HEAD | `api` with DELETE/PUT/PATCH/POST |
+| `auth status` | `secret set` |
 
 ### helm
 
@@ -221,6 +222,10 @@ For AI agents, add this to their environment configuration.
 |------------------------|-------------------------|
 | `list`, `search`, `help` | `install`, `uninstall` |
 | `version`, `info`, `env` | `upgrade` |
+
+### Gradle
+
+Gradle commands are not guarded by `blastshield-guard`. They run normally and rely on the filesystem sandbox. The base profile allows Gradle user cache/state writes under `~/.gradle` for builds, while keeping user-level Gradle init/config files protected.
 
 ### apt
 

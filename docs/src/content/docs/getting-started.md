@@ -260,13 +260,14 @@ blastshield --violations
 | Blocked | Allowed |
 |---------|---------|
 | `gh repo delete/edit/rename` | `gh repo list/view/clone/fork` |
-| `gh pr merge/close` | `gh pr list/view/diff/checkout` |
+| `gh pr create/merge/close/edit` | `gh pr list/view/diff/checks/status/checkout` |
 | `gh release delete` | `gh release create/list/view/download` |
 | `gh workflow disable/enable` | `gh workflow list/view` |
-| `gh run cancel` | `gh issue create/list/view/comment` |
-| `gh api -X DELETE/PUT/PATCH` | `gh pr create` |
+| `gh run cancel` | `gh run list/view/watch` |
+| `gh issue create/close/comment` | `gh issue list/view` |
+| `gh api -X DELETE/PUT/PATCH/POST` | `gh api` with GET/HEAD |
 | Workflow file writes | `gh auth status` |
-| CODEOWNERS writes | `gh secret set` |
+| CODEOWNERS writes, `gh secret set` | |
 
 ### Install (Package Manager) Profile
 
