@@ -781,7 +781,7 @@ APP
     fi
     rm -rf "$plist_app_tmp"
 
-    # Test: GUI app launches detach like `open`, while the app keeps running
+    # Test: non-interactive GUI app launches detach like `open`, while the app keeps running
     detached_tmp=$(mktemp -d)
     mkdir -p "$detached_tmp/Detached.app/Contents/MacOS"
     detached_pid_file="$detached_tmp/pid"
@@ -808,6 +808,28 @@ APP
         fail "integration: GUI app launch should detach" "$detached_out"
     fi
     rm -rf "$detached_tmp"
+
+    # Test: interactive GUI app launches keep the terminal open by streaming logs
+    if command -v script &>/dev/null; then
+        interactive_tmp=$(mktemp -d)
+        mkdir -p "$interactive_tmp/Interactive.app/Contents/MacOS"
+        cat > "$interactive_tmp/Interactive.app/Contents/MacOS/Interactive" <<'APP'
+#!/bin/sh
+echo INTERACTIVE_GUI_LOG_LINE
+sleep 1
+APP
+        chmod +x "$interactive_tmp/Interactive.app/Contents/MacOS/Interactive"
+        interactive_out=$(script -q /dev/null "$BLASTSHIELD" --no-detect --no-guard open "$interactive_tmp/Interactive.app" 2>&1) || true
+        if echo "$interactive_out" | grep -q "Streaming GUI app logs" &&
+            echo "$interactive_out" | grep -q "INTERACTIVE_GUI_LOG_LINE"; then
+            pass "integration: interactive GUI app launch streams logs"
+        else
+            fail "integration: interactive GUI app launch should stream logs" "$interactive_out"
+        fi
+        rm -rf "$interactive_tmp"
+    else
+        skip "integration: interactive GUI app log streaming (script not available)"
+    fi
 
     # Test: auto-detection path handles an initially empty extra_profiles array
     if autodetect_out=$(cd "$REPO_DIR" && "$BLASTSHIELD" /usr/bin/true 2>&1); then
