@@ -3,6 +3,19 @@ title: Changelog
 description: Recent BlastShield releases and the fixes included in each version.
 ---
 
+## Unreleased
+
+- Allows Conductor workspace creation to materialize tracked project metadata such as `.idea`, `.vscode`, and `.mcp.json`.
+- Removes Conductor-managed root denies that could break `git worktree` checkout.
+
+## v0.1.13 — 2026-06-22
+
+Release commit: `1fd49b4`
+
+- Adds the Conductor documentation page.
+- Documents the supported Conductor launch command and inherited sandbox behavior.
+- Adds Conductor support to the docs index, sidebar, README, FAQ, getting started guide, profiles reference, architecture page, and whitepaper.
+
 ## v0.1.12 — 2026-06-22
 
 Release commit: `3736add`

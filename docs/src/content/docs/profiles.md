@@ -231,14 +231,7 @@ Supports Conductor as a first-class GUI app launch target. BlastShield auto-adds
 | `~/conductor/repos` writes | Conductor manages root checkouts and shared repo state |
 | `~/.conductor` writes | Conductor user settings and local app state |
 
-The profile still blocks persistence-sensitive writes under Conductor-managed roots:
-
-| Blocked | Why |
-|---------|-----|
-| `.git/hooks` | Prevent persistent command execution through hooks |
-| `.git/config` | Prevent repository-level persistence and credential helper changes |
-| `.vscode`, `.idea` | Prevent IDE configuration planting |
-| `.mcp.json` | Prevent tool/MCP configuration planting |
+The Conductor profile intentionally allows full writes under those managed roots so `git worktree` can create new workspaces from repos that track project metadata such as `.idea`, `.vscode`, or `.mcp.json`. Use explicit profiles or a custom profile when a Conductor session needs stricter write policy.
 
 **Auto-detection trigger:** `.app` bundle with `CFBundleIdentifier = com.conductor.app`
 

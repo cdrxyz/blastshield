@@ -163,7 +163,7 @@ blastshield opencode
 blastshield -p gui-app open /Applications/Conductor.app
 ```
 
-Conductor is first-class supported. The `conductor-app` profile allows Conductor-launched agents to write under `~/conductor/workspaces`, `~/conductor/repos`, and `~/.conductor`, while keeping sensitive persistence paths protected. See the [Conductor guide](../conductor/) for details.
+Conductor is first-class supported. The `conductor-app` profile allows Conductor-launched agents to write under `~/conductor/workspaces`, `~/conductor/repos`, and `~/.conductor`, including tracked project metadata needed during `git worktree` checkout. See the [Conductor guide](../conductor/) for details.
 
 ### Guard Installation
 
