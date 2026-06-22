@@ -3,7 +3,15 @@ title: Changelog
 description: Recent BlastShield releases and the fixes included in each version.
 ---
 
-## Unreleased
+## v0.1.18 — 2026-06-22
+
+- Adds `AGENTS.md` with repository instructions for future coding agents.
+- Adds `CLAUDE.md` as a symlink to `AGENTS.md` so Claude uses the same instructions.
+- Documents the requirement that every non-release commit updates the changelog with the next release number and includes relevant docs updates in the same commit.
+
+## v0.1.17 — 2026-06-22
+
+Release commit: `d4523c0`
 
 - Allows Gradle builds to use `~/.gradle` cache, native, daemon, and wrapper state.
 - Keeps Gradle user-level init/config files such as `~/.gradle/gradle.properties` and `~/.gradle/init.d` protected.
