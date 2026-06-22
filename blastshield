@@ -291,7 +291,8 @@ run_sandboxed() {
 
 run_sandboxed_gui_app() {
     local profile_file="$1"
-    shift
+    local detach_requested="$2"
+    shift 2
     local command=("$@")
 
     if [[ ${#command[@]} -eq 0 ]]; then
@@ -336,6 +337,30 @@ run_sandboxed_gui_app() {
         BLASTSHIELD_TMP_PROFILE=""
         BLASTSHIELD_TMP_GUARD_DIR=""
         BLASTSHIELD_TMP_SHELL_ENV_DIR=""
+    fi
+
+    if [[ "$detach_requested" != true && "${BLASTSHIELD_GUI_DETACH:-}" != "1" && -t 1 ]]; then
+        info "Streaming GUI app logs; press Ctrl-C to stop following (app keeps running)"
+
+        local tail_pid follow_interrupted
+        follow_interrupted=false
+        touch "$log_file"
+        tail -n +1 -f "$log_file" &
+        tail_pid=$!
+
+        trap 'follow_interrupted=true; [[ -n "${tail_pid:-}" ]] && kill "$tail_pid" 2>/dev/null || true' INT TERM
+        while kill -0 "$app_pid" 2>/dev/null && ! $follow_interrupted; do
+            sleep 1 || true
+        done
+        [[ -n "${tail_pid:-}" ]] && kill "$tail_pid" 2>/dev/null || true
+        wait "$tail_pid" 2>/dev/null || true
+        trap - INT TERM
+
+        if $follow_interrupted && kill -0 "$app_pid" 2>/dev/null; then
+            info "Stopped following GUI app logs; app is still running as PID $app_pid"
+        elif ! kill -0 "$app_pid" 2>/dev/null; then
+            info "GUI app exited; logs retained at: $log_file"
+        fi
     fi
 }
 
@@ -433,6 +458,7 @@ main() {
     local diagnostic_mode=""
     local command_args=()
     local gui_app_launch=false
+    local gui_detach=false
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -448,6 +474,10 @@ main() {
                 ;;
             --no-guard)
                 guard_enabled=false
+                shift
+                ;;
+            --detach)
+                gui_detach=true
                 shift
                 ;;
             -c|--clean-env)
@@ -482,6 +512,7 @@ OPTIONS:
                           Built-in: terraform, gcloud, aws, azure, kubectl, gh
     --no-guard            Disable automatic command-argument guard injection
     --no-detect           Disable auto-detection of cloud profiles
+    --detach              For GUI app launches, return immediately instead of streaming logs
     -c, --clean-env       Strip environment variables (removes API keys from env)
     -v, --verbose         Verbose output
     --violations         Show recent sandbox violations from system log
@@ -662,7 +693,7 @@ HELP
         env -i "${env_args[@]}" run_sandboxed "$tmp_profile" "${command_args[@]}"
     else
         if $gui_app_launch; then
-            run_sandboxed_gui_app "$tmp_profile" "${command_args[@]}"
+            run_sandboxed_gui_app "$tmp_profile" "$gui_detach" "${command_args[@]}"
         else
             run_sandboxed "$tmp_profile" "${command_args[@]}"
         fi
