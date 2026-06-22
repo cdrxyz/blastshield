@@ -10,7 +10,7 @@ BlastShield provides defense in depth through three complementary layers, each h
 ```
 ┌─────────────────────────────────────────────────┐
 │                  AI Agent                        │
-│  (Claude Code, Codex, Cursor, Gemini, etc.)     │
+│  (Claude Code, Codex, Conductor, Cursor, etc.)  │
 └──────────────────┬──────────────────────────────┘
                    │
     ┌──────────────┼──────────────────┐

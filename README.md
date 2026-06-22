@@ -36,6 +36,9 @@ blastshield codex --full-auto
 
 # Run OpenCode sandboxed
 blastshield opencode
+
+# Run Conductor sandboxed
+blastshield -p gui-app open /Applications/Conductor.app
 ```
 
 ## Documentation
@@ -43,11 +46,13 @@ blastshield opencode
 Full documentation is available at **[cdrxyz.github.io/blastshield](https://cdrxyz.github.io/blastshield)**:
 
 - **[Getting Started](https://cdrxyz.github.io/blastshield/getting-started)** — installation, first run, configuration
+- **[Conductor](https://cdrxyz.github.io/blastshield/conductor)** — supported Conductor launch workflow and workspace policy
 - **[Architecture](https://cdrxyz.github.io/blastshield/architecture)** — two-layer defense model, how sandbox-exec and guard work together
 - **[Profiles](https://cdrxyz.github.io/blastshield/profiles)** — built-in and custom SBPL profiles, auto-detection
 - **[Guard](https://cdrxyz.github.io/blastshield/guard)** — command-argument filtering, Touch ID prompts, install/uninstall
 - **[Layering](https://cdrxyz.github.io/blastshield/layering)** — composing BlastShield with sandvault, safehouse, and other tools
 - **[Whitepaper](https://cdrxyz.github.io/blastshield/whitepaper)** — formal write-up with PDF download
+- **[Changelog](https://cdrxyz.github.io/blastshield/changelog)** — recent releases and fixes
 - **[FAQ](https://cdrxyz.github.io/blastshield/faq)** — common questions, caveats, and troubleshooting
 
 ## Blog

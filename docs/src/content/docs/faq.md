@@ -7,7 +7,7 @@ description: Common questions about BlastShield — sandbox-exec deprecation, Li
 
 ### What is BlastShield?
 
-BlastShield is a macOS tool that wraps AI coding agents (Claude Code, Codex, Cursor, Gemini) in `sandbox-exec` profiles to protect against destructive cloud CLI commands. It provides two layers of defense: kernel-level filesystem sandboxing and command-argument filtering with biometric/password authentication.
+BlastShield is a macOS tool that wraps AI coding agents and GUI launchers (Claude Code, Codex, Conductor, Cursor, Gemini) in `sandbox-exec` profiles to protect against destructive cloud CLI commands. It provides two layers of defense: kernel-level filesystem sandboxing and command-argument filtering with biometric/password authentication.
 
 ### Why do I need this? My agent has a built-in sandbox.
 
@@ -19,9 +19,12 @@ Any command-line tool. BlastShield doesn't need to know about the agent — it w
 - Claude Code (`blastshield claude`)
 - OpenAI Codex (`blastshield codex`)
 - OpenCode (`blastshield opencode`)
+- Conductor (`blastshield -p gui-app open /Applications/Conductor.app`)
 - Cursor (`blastshield cursor`)
 - Google Gemini (`blastshield gemini`)
 - Any other CLI tool (`blastshield bash`)
+
+BlastShield also has first-class support for Conductor as a macOS GUI app. See the [Conductor guide](../conductor/) for the launch command and workspace write policy.
 
 ## sandbox-exec & macOS
 
@@ -119,6 +122,8 @@ Not currently through a configuration file. The destructive command definitions 
 5. **No nested sandboxes** — Cannot use sandbox-exec inside another sandbox-exec
 6. **Keychain is allowed** — Credential helpers can authenticate on the agent's behalf
 7. **Content-level filtering is impossible** — sandbox-exec operates on paths, not file contents
+
+When Conductor is launched through BlastShield, agents inside that Conductor session already inherit the sandbox. Do not run `blastshield` again from inside those agents; macOS may reject nested `sandbox-exec` launches.
 
 ### Can I use BlastShield inside a Docker container?
 

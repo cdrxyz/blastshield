@@ -30,11 +30,13 @@ export default defineConfig({
       },
       sidebar: [
         { label: 'Getting Started', link: '/getting-started/' },
+        { label: 'Conductor', link: '/conductor/' },
         { label: 'Architecture', link: '/architecture/' },
         { label: 'Profiles', link: '/profiles/' },
         { label: 'Guard', link: '/guard/' },
         { label: 'Layering', link: '/layering/' },
         { label: 'Whitepaper', link: '/whitepaper/' },
+        { label: 'Changelog', link: '/changelog/' },
         { label: 'FAQ', link: '/faq/' },
       ],
     }),
