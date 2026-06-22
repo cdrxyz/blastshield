@@ -130,6 +130,21 @@ resolve_app_bundle() {
     return 1
 }
 
+app_bundle_identifier() {
+    local app_path="$1"
+    app_path="${app_path%/}"
+
+    if [[ -f "${app_path}/Contents/Info.plist" ]] && command -v /usr/libexec/PlistBuddy &>/dev/null; then
+        /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "${app_path}/Contents/Info.plist" 2>/dev/null || true
+    fi
+}
+
+is_conductor_app_bundle() {
+    local bundle_id
+    bundle_id=$(app_bundle_identifier "$1")
+    [[ "$bundle_id" == "com.conductor.app" ]]
+}
+
 
 # Detect which cloud CLIs are available on this system
 detect_cloud_clis() {
@@ -541,6 +556,7 @@ PROFILES:
     Default profiles (always loaded): base, secrets
     Cloud profiles (auto-detected or explicit): terraform, gcloud, aws, azure, kubectl, gh
     Install profiles (auto-detected): install
+    GUI profiles (auto-detected): gui-app, conductor-app for com.conductor.app
 
     Compose with existing tools:
     blastshield -p terraform -- safehouse claude --dangerously-skip-permissions
@@ -580,6 +596,16 @@ HELP
             done
             if ! $already_has_gui; then
                 extra_profiles+=("gui-app")
+            fi
+            if is_conductor_app_bundle "$app_path"; then
+                local already_has_conductor=false
+                for p in "${extra_profiles[@]:-}"; do
+                    [[ "$p" == "conductor-app" ]] && already_has_conductor=true && break
+                done
+                if ! $already_has_conductor; then
+                    extra_profiles+=("conductor-app")
+                    info "Detected Conductor app — auto-adding 'conductor-app' profile"
+                fi
             fi
             gui_app_launch=true
             # Rewrite command: drop 'open', use resolved binary directly
