@@ -593,33 +593,7 @@
 
 
 <table><thead><tr><th>Allowed</th><th>Why</th></tr></thead><tbody><tr><td><code dir="auto">~/conductor/workspaces</code> writes</td><td>Conductor agents edit workspace files</td></tr><tr><td><code dir="auto">~/conductor/repos</code> writes</td><td>Conductor manages root checkouts and shared repo state</td></tr><tr><td><code dir="auto">~/.conductor</code> writes</td><td>Conductor user settings and local app state</td></tr></tbody></table>
-<p>The profile still blocks persistence-sensitive writes under Conductor-managed roots:</p>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<table><thead><tr><th>Blocked</th><th>Why</th></tr></thead><tbody><tr><td><code dir="auto">.git/hooks</code></td><td>Prevent persistent command execution through hooks</td></tr><tr><td><code dir="auto">.git/config</code></td><td>Prevent repository-level persistence and credential helper changes</td></tr><tr><td><code dir="auto">.vscode</code>, <code dir="auto">.idea</code></td><td>Prevent IDE configuration planting</td></tr><tr><td><code dir="auto">.mcp.json</code></td><td>Prevent tool/MCP configuration planting</td></tr></tbody></table>
+<p>The Conductor profile intentionally allows full writes under those managed roots so <code dir="auto">git worktree</code> can create new workspaces from repos that track project metadata such as <code dir="auto">.idea</code>, <code dir="auto">.vscode</code>, or <code dir="auto">.mcp.json</code>. Use explicit profiles or a custom profile when a Conductor session needs stricter write policy.</p>
 <p><strong>Auto-detection trigger:</strong> <code dir="auto">.app</code> bundle with <code dir="auto">CFBundleIdentifier = com.conductor.app</code></p>
 <p>See the <a href="../conductor/">Conductor guide</a> for the supported launch workflow.</p>
 <hr>

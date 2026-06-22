@@ -95,14 +95,8 @@
 <li><code dir="auto">~/conductor/repos</code></li>
 <li><code dir="auto">~/.conductor</code></li>
 </ul>
-<p>Those writes are needed for agents to edit files in Conductor workspaces. The profile still blocks persistence-sensitive writes under Conductor-managed roots:</p>
-<ul>
-<li><code dir="auto">.git/hooks</code></li>
-<li><code dir="auto">.git/config</code></li>
-<li><code dir="auto">.vscode</code></li>
-<li><code dir="auto">.idea</code></li>
-<li><code dir="auto">.mcp.json</code></li>
-</ul>
+<p>Those writes are needed for agents to edit files in Conductor workspaces and for <code dir="auto">git worktree</code> to materialize tracked project files. This includes tracked metadata such as <code dir="auto">.idea</code>, <code dir="auto">.vscode</code>, and <code dir="auto">.mcp.json</code>; blocking those paths can cause new workspace creation to fail during checkout.</p>
+<p>Use explicit profiles or a custom profile when you want stricter policy for a particular Conductor session.</p>
 <div class="sl-heading-wrapper level-h2"><h2 id="gui-app-behavior">GUI App Behavior</h2><a class="sl-anchor-link" href="#gui-app-behavior"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “GUI App Behavior”</span></a></div>
 <p>For <code dir="auto">.app</code> launches, BlastShield skips project profile auto-detection by default. GUI apps run startup checks that often need normal CLI auth files, such as GitHub CLI config. Runtime guards still stay on <code dir="auto">PATH</code>.</p>
 <p>If you want additional restrictions for the GUI app and all child agents, opt in with explicit profiles:</p>
