@@ -15,12 +15,3 @@
 
 ;; Allow Conductor user-level settings/state outside Application Support.
 (allow file-write* (subpath "_HOME/.conductor"))
-
-;; Keep the same persistence-sensitive project protections under all
-;; Conductor-managed roots, not only the launch-time project directory.
-(deny file-write*
-      (regex #"^_HOME/conductor/(workspaces|repos)/.*/\.git/hooks(/|$)")
-      (regex #"^_HOME/conductor/(workspaces|repos)/.*/\.git/config$"))
-(deny file-write*
-      (regex #"^_HOME/conductor/(workspaces|repos)/.*/(\.vscode|\.idea)(/|$)")
-      (regex #"^_HOME/conductor/(workspaces|repos)/.*/\.mcp\.json$"))

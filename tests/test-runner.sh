@@ -896,6 +896,9 @@ APP
     conductor_marker="$conductor_tmp/marker"
     conductor_workspace_probe="$conductor_tmp/home/conductor/workspaces/current/probe"
     conductor_repo_probe="$conductor_tmp/home/conductor/repos/root/probe"
+    conductor_idea_probe="$conductor_tmp/home/conductor/workspaces/current/.idea/workspace.xml"
+    conductor_vscode_probe="$conductor_tmp/home/conductor/workspaces/current/.vscode/settings.json"
+    conductor_mcp_probe="$conductor_tmp/home/conductor/workspaces/current/.mcp.json"
     cat > "$conductor_tmp/FakeConductor.app/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -910,8 +913,12 @@ APP
 PLIST
     cat > "$conductor_tmp/FakeConductor.app/Contents/MacOS/FakeConductor" <<APP
 #!/bin/sh
-printf workspace > "$conductor_workspace_probe" &&
+mkdir -p "$(dirname "$conductor_idea_probe")" "$(dirname "$conductor_vscode_probe")" &&
+    printf workspace > "$conductor_workspace_probe" &&
     printf repo > "$conductor_repo_probe" &&
+    printf idea > "$conductor_idea_probe" &&
+    printf vscode > "$conductor_vscode_probe" &&
+    printf mcp > "$conductor_mcp_probe" &&
     printf done > "$conductor_marker"
 sleep 1
 APP
@@ -921,10 +928,13 @@ APP
     if wait_for_file "$conductor_marker" &&
         [[ "$(cat "$conductor_workspace_probe" 2>/dev/null)" == "workspace" ]] &&
         [[ "$(cat "$conductor_repo_probe" 2>/dev/null)" == "repo" ]] &&
+        [[ "$(cat "$conductor_idea_probe" 2>/dev/null)" == "idea" ]] &&
+        [[ "$(cat "$conductor_vscode_probe" 2>/dev/null)" == "vscode" ]] &&
+        [[ "$(cat "$conductor_mcp_probe" 2>/dev/null)" == "mcp" ]] &&
         echo "$conductor_out" | grep -q "auto-adding 'conductor-app' profile"; then
-        pass "integration: Conductor app launch allows Conductor workspace writes"
+        pass "integration: Conductor app launch allows Conductor workspace checkout writes"
     else
-        fail "integration: Conductor app launch should allow Conductor workspace writes" "$conductor_out"
+        fail "integration: Conductor app launch should allow Conductor workspace checkout writes" "$conductor_out"
     fi
     rm -rf "$conductor_tmp"
 

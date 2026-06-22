@@ -52,13 +52,9 @@ Conductor creates and manages workspaces outside the directory where you launch 
 - `~/conductor/repos`
 - `~/.conductor`
 
-Those writes are needed for agents to edit files in Conductor workspaces. The profile still blocks persistence-sensitive writes under Conductor-managed roots:
+Those writes are needed for agents to edit files in Conductor workspaces and for `git worktree` to materialize tracked project files. This includes tracked metadata such as `.idea`, `.vscode`, and `.mcp.json`; blocking those paths can cause new workspace creation to fail during checkout.
 
-- `.git/hooks`
-- `.git/config`
-- `.vscode`
-- `.idea`
-- `.mcp.json`
+Use explicit profiles or a custom profile when you want stricter policy for a particular Conductor session.
 
 ## GUI App Behavior
 
