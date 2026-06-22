@@ -165,6 +165,13 @@ else
     fail "profile 'gui-app': missing WebKit mach-bootstrap extension support" "Conductor startup reports this as a WebKit sandbox extension error"
 fi
 
+# Test: gui-app profile allows Launch Services URL/document opens
+if grep -q '^(allow lsopen)$' "$PROFILES_DIR/gui-app.sb"; then
+    pass "profile 'gui-app': allows Launch Services URL/document opens"
+else
+    fail "profile 'gui-app': missing Launch Services URL open support" "Clicking external links in sandboxed GUI apps can fail without (allow lsopen)"
+fi
+
 # Test: auto-detection function doesn't crash
 status_out2=$("$BLASTSHIELD" --status 2>&1) || true
 if echo "$status_out2" | grep -qE "(Available|Detected|Built-in|profiles)"; then

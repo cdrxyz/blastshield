@@ -19,6 +19,10 @@
 ;; Allow all mach* operations for Launch Services communication
 (allow mach*)
 
+;; Allow sandboxed GUI apps to open URLs/documents with the user's default apps.
+;; This is what backs clicking external links in apps such as Conductor.
+(allow lsopen)
+
 ;; WebKit views issue sandbox extensions for their helper processes.
 ;; Conductor and other GUI agent apps can embed WebKit for auth and UI flows.
 (allow generic-issue-extension

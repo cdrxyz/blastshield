@@ -212,6 +212,7 @@ Enables macOS GUI app launches while keeping child processes inside the BlastShi
 | Allowed | Why |
 |---------|-----|
 | GUI app bundle reads | Locate and execute app bundle binaries |
+| Launch Services URL/document opens | External links and "open in browser" actions |
 | WebKit sandbox extension issuance | Embedded auth/UI web views |
 | Power registration | Normal sleep/wake notification setup |
 | Metal/CoreAnimation/IOSurface GPU access | Metal-backed GUI rendering, including Zed |

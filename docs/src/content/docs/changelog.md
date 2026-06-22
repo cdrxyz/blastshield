@@ -5,6 +5,20 @@ description: Recent BlastShield releases and the fixes included in each version.
 
 ## Unreleased
 
+- Allows sandboxed GUI apps to open external links and documents through Launch Services.
+- Fixes clicking GitHub links and other external URLs from Conductor running under BlastShield.
+
+## v0.1.15 — 2026-06-22
+
+Release commit: `f89209d`
+
+- Marks `conductor-app` as an intentional allow-only companion profile.
+- Updates CI and local profile linting to accept explicitly marked allow-only profiles.
+
+## v0.1.14 — 2026-06-22
+
+Release commit: `48f2e4e`
+
 - Allows Conductor workspace creation to materialize tracked project metadata such as `.idea`, `.vscode`, and `.mcp.json`.
 - Removes Conductor-managed root denies that could break `git worktree` checkout.
 
