@@ -59,9 +59,12 @@ for profile in "$PROFILES_DIR"/*.sb; do
         fail "$name: missing (version 1) directive" "Every profile must have (version 1)"
     fi
 
-    # Test 3: Contains at least one (deny ...) rule
+    # Test 3: Contains at least one (deny ...) rule, unless explicitly
+    # marked as an allow-only companion profile.
     if grep -q '(deny ' "$profile"; then
         pass "$name: contains deny rules"
+    elif grep -q 'blastshield: allow-only-profile' "$profile"; then
+        pass "$name: marked as allow-only companion profile"
     else
         fail "$name: no deny rules found" "Profiles should have explicit deny rules"
     fi
