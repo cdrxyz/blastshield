@@ -1,4 +1,5 @@
 ;; blastshield Conductor app profile - permits Conductor-managed workspace edits
+;; blastshield: allow-only-profile
 ;;
 ;; Applied automatically when launching the Conductor app bundle
 ;; (CFBundleIdentifier: com.conductor.app). Conductor creates and manages

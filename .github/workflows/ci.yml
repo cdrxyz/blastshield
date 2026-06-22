@@ -73,10 +73,14 @@ jobs:
               errors=$((errors + 1))
             fi
 
-            # Must have deny rules
+            # Must have deny rules unless explicitly marked as an allow-only companion profile.
             if ! grep -q '(deny ' "$profile"; then
-              echo "  ❌ No deny rules"
-              errors=$((errors + 1))
+              if grep -q 'blastshield: allow-only-profile' "$profile"; then
+                echo "  ✅ Allow-only companion profile"
+              else
+                echo "  ❌ No deny rules"
+                errors=$((errors + 1))
+              fi
             fi
 
             # No tabs
