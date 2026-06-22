@@ -311,6 +311,46 @@ else
     pass "blastshield-guard check gh pr merge: correctly blocked"
 fi
 
+# Test: guard check — gh pr view with an ID and --json is allowed (read-only)
+if "$GUARD" check gh pr view 25493 --json statusCheckRollup,commits,headRefOid 2>&1; then
+    pass "blastshield-guard check gh pr view --json: correctly allowed (read-only)"
+else
+    fail "blastshield-guard check gh pr view --json: should be allowed"
+fi
+
+# Test: guard check — gh pr checks is allowed (read-only)
+if "$GUARD" check gh pr checks 25493 --watch=false 2>&1; then
+    pass "blastshield-guard check gh pr checks: correctly allowed (read-only)"
+else
+    fail "blastshield-guard check gh pr checks: should be allowed"
+fi
+
+# Test: guard check — gh run view/watch are allowed (read-only)
+if "$GUARD" check gh run view 123456 --log 2>&1 &&
+    "$GUARD" check gh run watch 123456 --exit-status 2>&1; then
+    pass "blastshield-guard check gh run view/watch: correctly allowed (read-only)"
+else
+    fail "blastshield-guard check gh run view/watch: should be allowed"
+fi
+
+# Test: guard check — gh api GET-style requests are allowed, mutating methods blocked
+if "$GUARD" check gh api repos/cdrxyz/blastshield/actions/runs/123/jobs 2>&1 &&
+    "$GUARD" check gh api --method GET repos/cdrxyz/blastshield/actions/runs/123/jobs 2>&1 &&
+    ! "$GUARD" check gh api --method DELETE repos/cdrxyz/blastshield/releases/1 >/dev/null 2>&1 &&
+    ! "$GUARD" check gh api -X PATCH repos/cdrxyz/blastshield >/dev/null 2>&1; then
+    pass "blastshield-guard check gh api: allows read-only methods and blocks mutating methods"
+else
+    fail "blastshield-guard check gh api: expected GET allowed and DELETE/PATCH blocked"
+fi
+
+# Test: guard check — Gradle is not command-guarded
+if gradle_guard_out=$("$GUARD" check gradle test 2>&1) &&
+    echo "$gradle_guard_out" | grep -q "UNGUARDED"; then
+    pass "blastshield-guard check gradle test: unguarded"
+else
+    fail "blastshield-guard check gradle test: should be unguarded" "$gradle_guard_out"
+fi
+
 # Test: guard check — aws ec2 run-instances blocked (mutating)
 if "$GUARD" check aws ec2 run-instances 2>&1; then
     fail "blastshield-guard check aws ec2 run-instances: should be blocked"
@@ -756,6 +796,25 @@ HERMIT_TERRAFORM
         pass "integration: blastshield blocks Claude global state writes"
     fi
     rm -rf "$claude_home"
+
+    # Test: Gradle can write user-level cache/native state while init/config stay protected
+    gradle_home=$(mktemp -d "${TMPDIR:-/tmp}/blastshield-gradle-home.XXXXXX")
+    if gradle_state_out=$(HOME="$gradle_home" "$BLASTSHIELD" --no-detect --no-guard /bin/sh -c 'mkdir -p "$HOME/.gradle/caches/modules-2" "$HOME/.gradle/native/test" "$HOME/.gradle/daemon/8.9" "$HOME/.gradle/wrapper/dists" && printf ok > "$HOME/.gradle/caches/modules-2/probe" && printf ok > "$HOME/.gradle/native/test/probe" && printf ok > "$HOME/.gradle/daemon/8.9/probe" && printf ok > "$HOME/.gradle/wrapper/dists/probe"' 2>&1); then
+        pass "integration: blastshield allows Gradle home cache writes"
+    else
+        fail "integration: blastshield Gradle home cache write failed" "$gradle_state_out"
+    fi
+    if HOME="$gradle_home" "$BLASTSHIELD" --no-detect --no-guard /bin/sh -c 'printf bad > "$HOME/.gradle/gradle.properties"' >/dev/null 2>&1; then
+        fail "integration: blastshield blocks Gradle properties writes" "Expected gradle.properties write to be denied"
+    else
+        pass "integration: blastshield blocks Gradle properties writes"
+    fi
+    if HOME="$gradle_home" "$BLASTSHIELD" --no-detect --no-guard /bin/sh -c 'mkdir -p "$HOME/.gradle/init.d" && printf bad > "$HOME/.gradle/init.d/persist.gradle"' >/dev/null 2>&1; then
+        fail "integration: blastshield blocks Gradle init script writes" "Expected init.d write to be denied"
+    else
+        pass "integration: blastshield blocks Gradle init script writes"
+    fi
+    rm -rf "$gradle_home"
 
     # Test: .app resolution honors CFBundleExecutable instead of guessing from app name
     plist_app_tmp=$(mktemp -d)
