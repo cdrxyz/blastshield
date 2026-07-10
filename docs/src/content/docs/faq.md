@@ -7,7 +7,7 @@ description: Common questions about BlastShield — sandbox-exec deprecation, Li
 
 ### What is BlastShield?
 
-BlastShield is a macOS tool that wraps AI coding agents and GUI launchers (Claude Code, Codex, Conductor, Cursor, Gemini) in `sandbox-exec` profiles to protect against destructive cloud CLI commands. It provides two layers of defense: kernel-level filesystem sandboxing and command-argument filtering with biometric/password authentication.
+BlastShield is a macOS tool that wraps AI coding agents and GUI launchers (Claude Code, Codex, Grok Build, Conductor, Cursor, Gemini) in `sandbox-exec` profiles to protect against destructive cloud CLI commands. It provides two layers of defense: kernel-level filesystem sandboxing and command-argument filtering with biometric/password authentication.
 
 ### Why do I need this? My agent has a built-in sandbox.
 
@@ -18,13 +18,14 @@ Built-in agent sandboxes (Claude's `/sandbox`, Codex's approval policies) only g
 Any command-line tool. BlastShield doesn't need to know about the agent — it wraps any process in a sandbox. Commonly used with:
 - Claude Code (`blastshield claude`)
 - OpenAI Codex (`blastshield codex`)
+- Grok Build (`blastshield grok` or `blastshield grok --always-approve`)
 - OpenCode (`blastshield opencode`)
 - Conductor (`blastshield -p gui-app open /Applications/Conductor.app`)
 - Cursor (`blastshield cursor`)
 - Google Gemini (`blastshield gemini`)
 - Any other CLI tool (`blastshield bash`)
 
-BlastShield also has first-class support for Conductor as a macOS GUI app. See the [Conductor guide](../conductor/) for the launch command and workspace write policy.
+Grok Build has first-class runtime-state support in the base profile: sessions, memory, logs, and auto-update binaries under `~/.grok` can write, while auth, config, skills, plugins, and hooks stay protected. BlastShield also has first-class support for Conductor as a macOS GUI app. See the [Conductor guide](../conductor/) for the launch command and workspace write policy.
 
 ## sandbox-exec & macOS
 

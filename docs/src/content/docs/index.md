@@ -34,6 +34,16 @@ Runtime guard wrappers intercept dangerous subcommands before they reach Terrafo
 ```bash
 brew install cdrxyz/tap/blastshield
 blastshield claude --dangerously-skip-permissions
+blastshield grok --always-approve
+```
+
+## Grok Build Support
+
+Grok Build is supported as a first-class CLI agent. BlastShield allows normal Grok runtime state under `~/.grok` while keeping auth, config, skills, plugins, and hooks write-protected:
+
+```bash
+blastshield grok --always-approve
+blastshield -p terraform grok --always-approve
 ```
 
 ## Conductor Support

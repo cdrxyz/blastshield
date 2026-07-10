@@ -37,6 +37,9 @@ blastshield codex --full-auto
 # Run OpenCode sandboxed
 blastshield opencode
 
+# Run Grok Build sandboxed
+blastshield grok --always-approve
+
 # Run Conductor sandboxed
 blastshield -p gui-app open /Applications/Conductor.app
 ```

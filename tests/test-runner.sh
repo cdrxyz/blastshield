@@ -797,6 +797,66 @@ HERMIT_TERRAFORM
     fi
     rm -rf "$claude_home"
 
+    # Test: Grok Build can create runtime state while auth/config/extension points stay protected
+    grok_home=$(mktemp -d "${TMPDIR:-/tmp}/blastshield-grok-home.XXXXXX")
+    mkdir -p "$grok_home/.grok"
+    if grok_state_out=$(HOME="$grok_home" "$BLASTSHIELD" --no-detect /bin/sh -c 'mkdir -p "$HOME/.grok/sessions/project/session-1" "$HOME/.grok/memory/project-abc12345/sessions" "$HOME/.grok/bin" "$HOME/.grok/docs" && printf ok > "$HOME/.grok/sessions/project/session-1/summary.json" && printf ok > "$HOME/.grok/memory/project-abc12345/sessions/2026-07-10.md" && printf ok > "$HOME/.grok/active_sessions.json" && printf ok > "$HOME/.grok/leader.sock" && printf ok > "$HOME/.grok/bin/grok-0.2.93"' 2>&1); then
+        pass "integration: blastshield allows Grok Build runtime state writes"
+    else
+        fail "integration: blastshield Grok Build runtime state write failed" "$grok_state_out"
+    fi
+    if HOME="$grok_home" "$BLASTSHIELD" --no-detect /bin/sh -c 'printf bad > "$HOME/.grok/auth.json"' >/dev/null 2>&1; then
+        fail "integration: blastshield blocks Grok Build auth writes" "Expected auth.json write to be denied"
+    else
+        pass "integration: blastshield blocks Grok Build auth writes"
+    fi
+    if HOME="$grok_home" "$BLASTSHIELD" --no-detect /bin/sh -c 'printf bad > "$HOME/.grok/config.toml"' >/dev/null 2>&1; then
+        fail "integration: blastshield blocks Grok Build config writes" "Expected config.toml write to be denied"
+    else
+        pass "integration: blastshield blocks Grok Build config writes"
+    fi
+    if HOME="$grok_home" "$BLASTSHIELD" --no-detect /bin/sh -c 'printf bad > "$HOME/.grok/requirements.toml"' >/dev/null 2>&1; then
+        fail "integration: blastshield blocks Grok Build requirements writes" "Expected requirements.toml write to be denied"
+    else
+        pass "integration: blastshield blocks Grok Build requirements writes"
+    fi
+    if HOME="$grok_home" "$BLASTSHIELD" --no-detect /bin/sh -c 'printf bad > "$HOME/.grok/sandbox.toml"' >/dev/null 2>&1; then
+        fail "integration: blastshield blocks Grok Build sandbox config writes" "Expected sandbox.toml write to be denied"
+    else
+        pass "integration: blastshield blocks Grok Build sandbox config writes"
+    fi
+    if HOME="$grok_home" "$BLASTSHIELD" --no-detect /bin/sh -c 'printf bad > "$HOME/.grok/trusted_folders.toml"' >/dev/null 2>&1; then
+        fail "integration: blastshield blocks Grok Build trusted folder writes" "Expected trusted_folders.toml write to be denied"
+    else
+        pass "integration: blastshield blocks Grok Build trusted folder writes"
+    fi
+    if HOME="$grok_home" "$BLASTSHIELD" --no-detect /bin/sh -c 'printf bad > "$HOME/.grok/settings.json"' >/dev/null 2>&1; then
+        fail "integration: blastshield blocks Grok Build settings writes" "Expected settings.json write to be denied"
+    else
+        pass "integration: blastshield blocks Grok Build settings writes"
+    fi
+    if HOME="$grok_home" "$BLASTSHIELD" --no-detect /bin/sh -c 'mkdir -p "$HOME/.grok/skills/test" && printf bad > "$HOME/.grok/skills/test/SKILL.md"' >/dev/null 2>&1; then
+        fail "integration: blastshield blocks Grok Build skill writes" "Expected skill write to be denied"
+    else
+        pass "integration: blastshield blocks Grok Build skill writes"
+    fi
+    if HOME="$grok_home" "$BLASTSHIELD" --no-detect /bin/sh -c 'mkdir -p "$HOME/.grok/plugins/test" && printf bad > "$HOME/.grok/plugins/test/plugin.json"' >/dev/null 2>&1; then
+        fail "integration: blastshield blocks Grok Build plugin writes" "Expected plugin write to be denied"
+    else
+        pass "integration: blastshield blocks Grok Build plugin writes"
+    fi
+    if HOME="$grok_home" "$BLASTSHIELD" --no-detect /bin/sh -c 'mkdir -p "$HOME/.grok/hooks" && printf bad > "$HOME/.grok/hooks/session-start.json"' >/dev/null 2>&1; then
+        fail "integration: blastshield blocks Grok Build hook writes" "Expected hook write to be denied"
+    else
+        pass "integration: blastshield blocks Grok Build hook writes"
+    fi
+    if HOME="$grok_home" "$BLASTSHIELD" --no-detect /bin/sh -c 'mkdir -p "$HOME/.grok/installed-plugins/test" && printf bad > "$HOME/.grok/installed-plugins/test/manifest.json"' >/dev/null 2>&1; then
+        fail "integration: blastshield blocks Grok Build installed-plugin writes" "Expected installed-plugin write to be denied"
+    else
+        pass "integration: blastshield blocks Grok Build installed-plugin writes"
+    fi
+    rm -rf "$grok_home"
+
     # Test: Gradle can write user-level cache/native state while init/config stay protected
     gradle_home=$(mktemp -d "${TMPDIR:-/tmp}/blastshield-gradle-home.XXXXXX")
     if gradle_state_out=$(HOME="$gradle_home" "$BLASTSHIELD" --no-detect --no-guard /bin/sh -c 'mkdir -p "$HOME/.gradle/caches/modules-2" "$HOME/.gradle/native/test" "$HOME/.gradle/daemon/8.9" "$HOME/.gradle/wrapper/dists" && printf ok > "$HOME/.gradle/caches/modules-2/probe" && printf ok > "$HOME/.gradle/native/test/probe" && printf ok > "$HOME/.gradle/daemon/8.9/probe" && printf ok > "$HOME/.gradle/wrapper/dists/probe"' 2>&1); then

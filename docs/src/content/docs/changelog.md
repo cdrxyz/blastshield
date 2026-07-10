@@ -3,6 +3,14 @@ title: Changelog
 description: Recent BlastShield releases and the fixes included in each version.
 ---
 
+## v0.1.19 — 2026-07-10
+
+- Adds first-class Grok Build support in the base profile: allow runtime state writes under `~/.grok` (sessions, memory, logs, sockets, auto-update binaries).
+- Protects Grok Build auth, configuration, policy, skills, plugins, hooks, and installed-plugin extension points from sandboxed writes.
+- Documents `blastshield grok` / `blastshield grok --always-approve` in the README, getting started guide, FAQ, profiles reference, docs index, architecture, and whitepaper.
+- Preserves Grok Build non-secret routing endpoints under `--clean-env` (`GROK_MODELS_BASE_URL`, `GROK_MODELS_LIST_URL`, `GROK_CLI_CHAT_PROXY_BASE_URL`).
+- Adds integration tests covering allowed Grok runtime state and denied Grok auth/config/extension-point writes.
+
 ## v0.1.18 — 2026-06-22
 
 - Adds `AGENTS.md` with repository instructions for future coding agents.

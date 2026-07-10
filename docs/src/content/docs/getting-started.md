@@ -29,6 +29,9 @@ blastshield claude --dangerously-skip-permissions
 # Run Codex with full auto-approve
 blastshield codex --full-auto
 
+# Run Grok Build with always-approve (Grok's unrestricted tool mode)
+blastshield grok --always-approve
+
 # Run OpenCode with explicit profiles
 blastshield -p terraform -p aws opencode
 
@@ -82,21 +85,27 @@ blastshield claude --dangerously-skip-permissions
 # Or with Codex
 blastshield codex --full-auto
 
+# Or with Grok Build
+blastshield grok --always-approve
+
 # Or with OpenCode
 blastshield opencode
 
 # Explicit profiles
 blastshield -p terraform codex
 blastshield -p gcloud -p aws opencode
+blastshield -p terraform grok --always-approve
 
 # Clean environment (strip API keys from env vars)
 blastshield -c claude --dangerously-skip-permissions
 blastshield -c codex --full-auto
+blastshield -c grok --always-approve
 blastshield -c opencode
 
 # Disable auto-detection
 blastshield --no-detect claude
 blastshield --no-detect codex
+blastshield --no-detect grok
 blastshield --no-detect opencode
 ```
 
@@ -293,7 +302,7 @@ Blocks AI agents from installing new dependencies without human review. Protects
 ```
 ┌─────────────────────────────────────────────────┐
 │                  AI Agent                        │
-│  (Claude Code, Codex, Conductor, Cursor, Gemini, etc.)   │
+│  (Claude Code, Codex, Grok Build, Conductor, Cursor, Gemini, etc.)   │
 └──────────────────┬──────────────────────────────┘
                    │
     ┌──────────────┼──────────────────┐
