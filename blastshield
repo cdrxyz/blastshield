@@ -5,6 +5,7 @@
 # Usage:
 #   blastshield claude --dangerously-skip-permissions
 #   blastshield codex
+#   blastshield grok --always-approve
 #   blastshield --profile terraform shell
 #   blastshield --profile gcp -- claude
 
@@ -542,6 +543,9 @@ EXAMPLES:
     # Run Codex with explicit terraform profile
     blastshield -p terraform codex
 
+    # Run Grok Build with always-approve
+    blastshield grok --always-approve
+
     # Run a shell with GCP and AWS profiles
     blastshield -p gcloud -p aws bash
 
@@ -702,6 +706,8 @@ HELP
             XDG_CACHE_HOME XDG_CONFIG_HOME XDG_DATA_HOME XDG_STATE_HOME
             BLASTSHIELD_GUARD_MODE
             ANTHROPIC_BASE_URL OPENAI_BASE_URL GOOGLE_BASE_URL
+            # Grok Build / xAI non-secret routing endpoints (not API keys)
+            GROK_MODELS_BASE_URL GROK_MODELS_LIST_URL GROK_CLI_CHAT_PROXY_BASE_URL
             # Cloud SDK base URLs (safe, not secrets)
             AWS_DEFAULT_REGION AWS_REGION
             CLOUDSDK_CORE_PROJECT CLOUDSDK_COMPUTE_ZONE

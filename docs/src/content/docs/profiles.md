@@ -61,6 +61,9 @@ The foundation of every BlastShield session. Establishes a deny-by-default polic
 | System reads | Allowed for standard system paths |
 | Process execution | Allowed for standard binary paths |
 | Network | Outbound allowed, inbound allowed |
+| Codex runtime writes | Allowed under `~/.codex`, except auth/config/rules/skills/memories |
+| Claude runtime writes | Allowed under `~/.claude`, except settings/plugins/native integration |
+| Grok Build runtime writes | Allowed under `~/.grok` for sessions, memory, logs, sockets, and auto-update binaries; auth, config, policy, skills, plugins, and hooks stay protected |
 | Gradle cache/state writes | Allowed under `~/.gradle`, except user-level init/config files |
 | Mount/unmount | Denied |
 | IOKit | Denied |

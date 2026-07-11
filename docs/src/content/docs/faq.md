@@ -7,7 +7,7 @@ description: Common questions about BlastShield — sandbox-exec deprecation, Li
 
 ### What is BlastShield?
 
-BlastShield is a macOS tool that wraps AI coding agents and GUI launchers (Claude Code, Codex, Conductor, Cursor, Gemini) in `sandbox-exec` profiles to protect against destructive cloud CLI commands. It provides two layers of defense: kernel-level filesystem sandboxing and command-argument filtering with biometric/password authentication.
+BlastShield is a macOS tool that wraps AI coding agents and GUI launchers (Claude Code, Codex, Grok Build, Conductor, Cursor, Gemini) in `sandbox-exec` profiles to protect against destructive cloud CLI commands. It provides two layers of defense: kernel-level filesystem sandboxing and command-argument filtering with biometric/password authentication.
 
 ### Why do I need this? My agent has a built-in sandbox.
 
@@ -18,13 +18,32 @@ Built-in agent sandboxes (Claude's `/sandbox`, Codex's approval policies) only g
 Any command-line tool. BlastShield doesn't need to know about the agent — it wraps any process in a sandbox. Commonly used with:
 - Claude Code (`blastshield claude`)
 - OpenAI Codex (`blastshield codex`)
+- Grok Build (`blastshield grok` or `blastshield grok --always-approve`)
 - OpenCode (`blastshield opencode`)
 - Conductor (`blastshield -p gui-app open /Applications/Conductor.app`)
 - Cursor (`blastshield cursor`)
 - Google Gemini (`blastshield gemini`)
 - Any other CLI tool (`blastshield bash`)
 
-BlastShield also has first-class support for Conductor as a macOS GUI app. See the [Conductor guide](../conductor/) for the launch command and workspace write policy.
+Grok Build has first-class runtime-state support in the base profile: sessions, memory, logs, and auto-update binaries under `~/.grok` can write, while auth, config, skills, plugins, and hooks stay protected. BlastShield also has first-class support for Conductor as a macOS GUI app. See the [Conductor guide](../conductor/) for the launch command and workspace write policy.
+
+### How do I run Grok Build under BlastShield?
+
+```bash
+# Interactive / YOLO-style tool approval
+blastshield grok --always-approve
+
+# Headless one-shot
+blastshield grok -p "Summarize this repo"
+
+# With explicit cloud profiles
+blastshield -p terraform -p gh grok --always-approve
+```
+
+Authenticate Grok **outside** BlastShield first (`grok login`) or use `XAI_API_KEY`. BlastShield intentionally blocks writes to `~/.grok/auth.json` and `~/.grok/config.toml` so a sandboxed agent cannot replace credentials, policy, skills, plugins, or hooks. Session history, memory, logs, sockets, and auto-update binaries under `~/.grok` remain writable so normal Grok workflows work.
+
+If token refresh fails because `auth.json` is write-protected, set `XAI_API_KEY` or re-login outside the sandbox, then relaunch with BlastShield.
+
 
 ## sandbox-exec & macOS
 

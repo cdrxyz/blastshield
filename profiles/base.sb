@@ -50,6 +50,10 @@
 ;; Claude runtime state. Keep settings/plugins/native integration read-only below.
 (allow file-write* (subpath "_HOME/.claude"))
 
+;; Grok Build (xAI) runtime state. Keep auth/config/extension points read-only below.
+;; Sessions, memory, logs, caches, sockets, and auto-update binaries live under ~/.grok.
+(allow file-write* (subpath "_HOME/.grok"))
+
 ;; ═══ Filesystem: Protected Write Paths ═══
 ;; Block writes to dangerous locations even within project dir
 
@@ -85,6 +89,18 @@
 (deny file-write* (subpath "_HOME/.claude/chrome"))
 (deny file-write* (subpath "_HOME/.claude/backups"))
 (deny file-write* (literal "_HOME/.claude.json"))
+
+;; No writing to Grok Build auth, configuration, policy, or extension points
+(deny file-write* (literal "_HOME/.grok/auth.json"))
+(deny file-write* (literal "_HOME/.grok/config.toml"))
+(deny file-write* (literal "_HOME/.grok/requirements.toml"))
+(deny file-write* (literal "_HOME/.grok/sandbox.toml"))
+(deny file-write* (literal "_HOME/.grok/trusted_folders.toml"))
+(deny file-write* (literal "_HOME/.grok/settings.json"))
+(deny file-write* (subpath "_HOME/.grok/skills"))
+(deny file-write* (subpath "_HOME/.grok/plugins"))
+(deny file-write* (subpath "_HOME/.grok/hooks"))
+(deny file-write* (subpath "_HOME/.grok/installed-plugins"))
 
 ;; ═══ Process Execution ═══
 
