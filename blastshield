@@ -11,7 +11,7 @@
 
 set -euo pipefail
 
-readonly VERSION="0.1.18"
+readonly VERSION="0.1.19"
 readonly SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 readonly PROFILES_DIR="${SCRIPT_DIR}/profiles"
 readonly GUARD_SCRIPT="${SCRIPT_DIR}/helpers/blastshield-guard"
