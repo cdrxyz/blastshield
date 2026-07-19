@@ -44,6 +44,59 @@ Authenticate Grok **outside** BlastShield first (`grok login`) or use `XAI_API_K
 
 If token refresh fails because `auth.json` is write-protected, set `XAI_API_KEY` or re-login outside the sandbox, then relaunch with BlastShield.
 
+### `Couldn't create session: FS_PERMISSION_DENIED` when running Grok
+
+Grok stores sessions under `~/.grok/`. **BlastShield ≥ v0.1.19** allows those runtime writes; **v0.1.18 and earlier do not**.
+
+```bash
+blastshield --version   # need 0.1.19+
+which blastshield       # confirm you are not on an older Homebrew install
+```
+
+If Homebrew is still on `0.1.18`, either upgrade when the tap publishes a newer bottle, or run from a checkout that includes Grok support:
+
+```bash
+cd /path/to/blastshield
+export PATH="$PWD:$PATH"   # put the repo ahead of /opt/homebrew/bin
+blastshield --version      # expect v0.1.19 or newer
+blastshield grok -p "Reply with: pong"
+```
+
+### Grok opens but the prompt stays "queued" / setup never finishes
+
+Grok's interactive session **blocks on MCP and auth setup** before a turn can run. If that setup cannot complete inside the sandbox, the UI can sit on **queued** indefinitely.
+
+Common causes and fixes:
+
+1. **Old BlastShield without Grok runtime writes**  
+   See the `FS_PERMISSION_DENIED` section above. Confirm `blastshield --version` is **≥ 0.1.19**.
+
+2. **First login / expired OAuth / MCP browser auth**  
+   Complete login and MCP OAuth **outside** the sandbox first:
+   ```bash
+   grok login
+   grok mcp doctor   # e.g. Sentry plugin
+   ```
+   Then relaunch: `blastshield grok --always-approve`.  
+   BlastShield ≥ v0.1.20 allows Launch Services browser opens (`lsopen`) so OAuth can open a browser when needed; credentials still must be stored outside the sandbox because `~/.grok/auth.json` is write-protected.
+
+3. **Folder trust cannot be saved under BlastShield**  
+   Writes to `~/.grok/trusted_folders.toml` are denied so an agent cannot expand trust. Check and grant trust **outside** the sandbox:
+   ```bash
+   grok inspect    # look for "Project trusted: yes"
+   ```
+   If it is not trusted, start a normal (unsandboxed) interactive session in that directory and run the slash command **`/hooks-trust`** (or use the Trust action in the `/hooks` modal). There is no top-level `grok --trust` flag on current Grok Build builds — only `grok plugin install … --trust` for plugins.
+
+4. **Nested `sandbox-exec` is impossible**  
+   macOS does not support recursive Seatbelt. If Grok also has `--sandbox` / `[sandbox] profile` enabled, the inner apply fails. Use BlastShield as the OS sandbox and leave Grok's sandbox off (its default).
+
+5. **Quick health check**  
+   ```bash
+   # Should return quickly if auth/MCP are healthy (requires BlastShield ≥ 0.1.19)
+   blastshield grok -p "Reply with: pong"
+   blastshield --violations   # recent Seatbelt denials
+   ```
+
 
 ## sandbox-exec & macOS
 

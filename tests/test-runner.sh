@@ -172,6 +172,13 @@ else
     fail "profile 'gui-app': missing Launch Services URL open support" "Clicking external links in sandboxed GUI apps can fail without (allow lsopen)"
 fi
 
+# Test: base profile allows Launch Services URL opens for CLI OAuth (Grok/Claude/MCP)
+if grep -q '^(allow lsopen)$' "$PROFILES_DIR/base.sb"; then
+    pass "profile 'base': allows Launch Services URL opens for CLI OAuth"
+else
+    fail "profile 'base': missing Launch Services URL open support" "Without (allow lsopen), browser OAuth fails with error -54 and interactive setup can hang queued"
+fi
+
 # Test: auto-detection function doesn't crash
 status_out2=$("$BLASTSHIELD" --status 2>&1) || true
 if echo "$status_out2" | grep -qE "(Available|Detected|Built-in|profiles)"; then
@@ -796,6 +803,15 @@ HERMIT_TERRAFORM
         pass "integration: blastshield blocks Claude global state writes"
     fi
     rm -rf "$claude_home"
+
+    # Test: base profile permits Launch Services browser opens for CLI OAuth
+    # (Grok/Claude/MCP). Without lsopen, open fails with error -54.
+    if lsopen_out=$("$BLASTSHIELD" --no-detect --no-guard /bin/sh -c 'open "https://example.com" >/dev/null 2>&1; echo exit:$?' 2>&1) &&
+       echo "$lsopen_out" | grep -q 'exit:0'; then
+        pass "integration: base profile allows Launch Services URL opens"
+    else
+        fail "integration: base profile allows Launch Services URL opens" "$lsopen_out"
+    fi
 
     # Test: Grok Build can create runtime state while auth/config/extension points stay protected
     grok_home=$(mktemp -d "${TMPDIR:-/tmp}/blastshield-grok-home.XXXXXX")

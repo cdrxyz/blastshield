@@ -3,6 +3,13 @@ title: Changelog
 description: Recent BlastShield releases and the fixes included in each version.
 ---
 
+## v0.1.20 — 2026-07-14
+
+- Allows Launch Services URL opens (`lsopen`) in the base profile so CLI agents can open the system browser for OAuth (Grok Build, Claude, Codex, MCP). Without this, interactive setup could hang with prompts stuck in "queued" after `_LSOpenURLsWithCompletionHandler` error -54.
+- Documents Grok Build "queued" / incomplete setup troubleshooting: authenticate and trust folders outside the sandbox first (`grok inspect`, interactive `/hooks-trust` — not a top-level `grok --trust` flag), avoid nested Seatbelt, and use headless health checks.
+- Documents the `FS_PERMISSION_DENIED` / "Couldn't create session" failure when running Grok under BlastShield older than v0.1.19 (Homebrew installs that predate `~/.grok` runtime write support).
+- Notes browser/OAuth opens in the base profile reference.
+
 ## v0.1.19 — 2026-07-10
 
 - Adds first-class Grok Build support in the base profile: allow runtime state writes under `~/.grok` (sessions, memory, logs, sockets, auto-update binaries).

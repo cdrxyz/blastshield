@@ -30,6 +30,7 @@ blastshield claude --dangerously-skip-permissions
 blastshield codex --full-auto
 
 # Run Grok Build with always-approve (Grok's unrestricted tool mode)
+# Authenticate outside the sandbox first: grok login
 blastshield grok --always-approve
 
 # Run OpenCode with explicit profiles

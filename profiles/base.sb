@@ -115,6 +115,14 @@
 (allow network-outbound)
 (allow network-inbound)
 
+;; ═══ Browser / OAuth opens ═══
+;; CLI agents (Grok Build, Claude Code, Codex, MCP OAuth) open the system
+;; browser for login. Without lsopen, Launch Services fails with error -54 and
+;; interactive setup can hang with prompts stuck in "queued" while waiting for
+;; auth that never completes. This is intentionally narrower than the gui-app
+;; profile (no full GUI/GPU stack).
+(allow lsopen)
+
 ;; ═══ IPC and System ═══
 
 (allow ipc*)

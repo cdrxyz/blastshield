@@ -65,6 +65,7 @@ The foundation of every BlastShield session. Establishes a deny-by-default polic
 | Claude runtime writes | Allowed under `~/.claude`, except settings/plugins/native integration |
 | Grok Build runtime writes | Allowed under `~/.grok` for sessions, memory, logs, sockets, and auto-update binaries; auth, config, policy, skills, plugins, and hooks stay protected |
 | Gradle cache/state writes | Allowed under `~/.gradle`, except user-level init/config files |
+| Browser / OAuth opens | Allowed via Launch Services (`lsopen`) so CLI agents can open the system browser for login and MCP OAuth |
 | Mount/unmount | Denied |
 | IOKit | Denied |
 
