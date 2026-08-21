@@ -42,7 +42,7 @@ CLOUD_PROFILES=("terraform" "gcloud" "aws" "azure" "kubectl" "gh" "install")
 # ─── Helpers ──────────────────────────────────────────────────────────────
 
 info()  { echo -e "${CYAN}[blastshield]${NC} $*"; }
-warn()  { echo -e "${YELLOW}[blastshield]${NC} $*"; }
+warn()  { echo -e "${YELLOW}[blastshield]${NC} $*" >&2; }
 error() { echo -e "${RED}[blastshield]${NC} $*" >&2; }
 die()   { error "$@"; exit 1; }
 
@@ -269,9 +269,7 @@ assemble_profile() {
                 if is_explicit_profile "$name"; then
                     die "Profile not found: $name"
                 fi
-                # warn() writes stdout; send it to stderr so this skip line
-                # cannot leak into the assembled SBPL as raw text.
-                warn "Profile not found: $name (skipping)" >&2
+                warn "Profile not found: $name (skipping)"
                 echo ";; Profile not found: $name (skipping)"
                 continue
             fi

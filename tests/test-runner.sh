@@ -252,6 +252,27 @@ else
 fi
 rm -rf "$optional_tmp"
 
+# Lock: warn() during assemble must not appear in the assembled SBPL
+lock_dir=$(mktemp -d "${TMPDIR:-/tmp}/blastshield-assemble-warn-lock.XXXXXX")
+mkdir -p "$lock_dir/profiles"
+cp "$PROFILES_DIR/base.sb" "$PROFILES_DIR/secrets.sb" "$lock_dir/profiles/"
+sed '/^main "\$@"$/d' "$BLASTSHIELD" > "$lock_dir/blastshield"
+lock_sb="$lock_dir/assembled.sb"
+lock_err=""
+lock_status=0
+lock_err=$(cd "$lock_dir" && bash -c '. ./blastshield; explicit_profiles=(); assemble_profile "$1" base terraform' bash "$lock_sb" 2>&1) || lock_status=$?
+if [[ $lock_status -eq 0 && -f "$lock_sb" ]] &&
+    echo "$lock_err" | grep -q "Profile not found: terraform (skipping)" &&
+    grep -q ';; Profile not found: terraform (skipping)' "$lock_sb" &&
+    ! grep -q '\[blastshield\]' "$lock_sb" &&
+    grep -q '^(version 1)$' "$lock_sb"; then
+    pass "blastshield: warn during assemble stays off the generated SBPL"
+else
+    fail "blastshield: warn during assemble must not appear in the assembled SBPL" \
+        "status=$lock_status err=$lock_err file=$(cat "$lock_sb" 2>/dev/null)"
+fi
+rm -rf "$lock_dir"
+
 # ─── Guard Tests ──────────────────────────────────────────────────────────
 
 section "BlastShield Guard Tests"
