@@ -222,7 +222,7 @@ No test asserts a missing `-p` is fatal. `--help` does not mention the skip beha
 - `prerelease: true` is hardcoded (line 94).
 - `v0.1.11`–`v0.1.20` are all prereleases. `GET /repos/cdrxyz/blastshield/releases/latest` → 404.
 - Release job does not `needs: [test, lint-profiles]`. CI and release race on the same push.
-- Homebrew dispatch uses `HOMEBREW_TAP_REPO_TOKEN` and passes attacker-controlled-if-workflow-is-forked values `version`, `url`, `sha256` into `cdrxyz/homebrew-tap` `update-formula.yml` (lines 101–118). `RUNBOOK.md` correctly limits the token to Actions write on the tap only; the tap workflow’s trust in those inputs is out of repo and unverified here.
+- Homebrew dispatch uses `HOMEBREW_TAP_REPO_TOKEN` and passes `version`, `url`, and `sha256` computed by this job into `cdrxyz/homebrew-tap` `update-formula.yml` (lines 101–118). The release workflow triggers on `push` to `master` and `workflow_dispatch` only — not `pull_request` — so a fork PR cannot supply those inputs. Residual risk is a `master` push or a manual dispatch shipping a tarball whose checksum the tap then trusts; `RUNBOOK.md` correctly limits the token to Actions write on the tap only. The tap workflow’s trust in those inputs is out of repo and unverified here.
 - Actions are tagged (`actions/checkout@v4`, `softprops/action-gh-release@v1`, `peaceiris/actions-gh-pages@v4`), not SHA-pinned.
 - `scripts/package-release.py` appends to `dist/checksums.txt` (`"a"`), so a dirty `dist/` can ship extra checksum lines.
 - Two near-simultaneous `master` pushes can race the version bump commit.
@@ -259,7 +259,7 @@ No test asserts a missing `-p` is fatal. `--help` does not mention the skip beha
 
 **Suggested direction.** Resolve the real binary at exec time from a filtered `PATH`, or `exec -a` via a denied-write helper. Do not embed the absolute path in a file the sandbox can read.
 
-#### M3. Policy is copied by hand across six surfaces and has already drifted
+#### M3. Policy is copied by hand across nine sources and has already drifted
 
 **Why it matters.** Users and contributors cannot know what is actually blocked. FAQ still tells people to edit a `DESTRUCTIVE_COMMANDS` associative array that does not exist.
 
@@ -273,7 +273,7 @@ No test asserts a missing `-p` is fatal. `--help` does not mention the skip beha
 6. Comment headers in `profiles/*.sb` (especially `gh.sb` vs guard)
 7. FAQ (`docs/src/content/docs/faq.md` line 184: `DESTRUCTIVE_COMMANDS`)
 8. Completions (`completions/blastshield.bash`, `blastshield.zsh`, `_blastshield`): profiles stop at `gh` (missing `install`, `gui-app`, `conductor-app`); flags omit `--no-guard` and `--detach`; agents omit `grok`
-9. `blastshield --help` built-in list omits `install`, `gui-app`, `conductor-app` (lines 527–528)
+9. `blastshield --help` OPTIONS “Built-in:” line omits `install`, `gui-app`, `conductor-app` (lines 527–528). The PROFILES section of the same help text already lists those three (lines 558–563).
 
 `Pipfile.lock` is listed as denied in `architecture.md` and the whitepaper; `install.sb` does not deny it (it does deny `poetry.lock` and `uv.lock`).
 
@@ -323,7 +323,7 @@ No test asserts a missing `-p` is fatal. `--help` does not mention the skip beha
 
 #### L1. Completions and `--help` lag the real CLI
 
-`--no-guard`, `--detach`, `install`, `gui-app`, `conductor-app`, and `grok` are missing from completions. `--help` profile list is incomplete. `completions/blastshield.zsh` and `completions/_blastshield` are identical.
+`--no-guard`, `--detach`, `install`, `gui-app`, `conductor-app`, and `grok` are missing from completions. The `--help` OPTIONS “Built-in:” line is incomplete (terraform/gcloud/aws/azure/kubectl/gh only); the PROFILES section already lists `install`, `gui-app`, and `conductor-app`. `completions/blastshield.zsh` and `completions/_blastshield` are identical.
 
 #### L2. Leftover `cloudseal` naming in always-on profiles
 
@@ -377,7 +377,7 @@ The same `open *.app` block appears in `main` and `detect_cloud_clis`. One shoul
 - **CI hits real `sandbox-exec`.** `macos-latest` for tests and profile lint is the correct runner for a Seatbelt product. Docs build is a separate Ubuntu job with a page-count sanity check.
 - **Homebrew tap token is documented with least-privilege intent.** `RUNBOOK.md` specifies a fine-grained PAT, Actions write only, no contents write, plus rotation and a smoke-test dispatch.
 - **Fail closed when `sandbox-exec` is missing.** Both `run_sandboxed` and `run_sandboxed_gui_app` `die` if the binary is absent. Linux is not given a fake “guard-only blastshield” that would imply kernel enforcement.
-- **Contributor rule is simple and enforced socially.** `AGENTS.md` + changelog-in-the-same-commit keeps the public version story closer to the code than most small tools.
+- **Contributor rule is simple and enforced socially.** `AGENTS.md` requires every non-release commit to update `docs/src/content/docs/changelog.md` with the next release number. That file is the contributor changelog this audit updates. This write-up does not treat it as a published product-policy Starlight page (unlike `guard.md` / `profiles.md` / architecture).
 - **Beta banner is present.** README, getting-started, and the docs `BetaBanner` do not pretend this is finished.
 
 ---

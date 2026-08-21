@@ -6,6 +6,7 @@ description: Recent BlastShield releases and the fixes included in each version.
 ## v0.1.21 — 2026-08-21
 
 - Adds a repository audit at `docs/audits/2026-08-21-full-audit.md` covering threat model, Seatbelt/guard layering, test gaps, release/Homebrew supply chain, and docs drift. Investigation only; no product, profile, guard, test, or CI behavior change.
+- Corrects four accuracy nits in that audit: release-workflow trigger wording, policy-source count, `--help` OPTIONS vs PROFILES scope, and the contributor-changelog note.
 
 ## v0.1.20 — 2026-07-14
 
