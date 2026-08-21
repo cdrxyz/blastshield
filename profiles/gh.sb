@@ -61,10 +61,9 @@
 ;; Deny writing to workflow files (prevents agent modifying CI/CD)
 (deny file-write* (subpath "_PROJECT_DIR/.github/workflows"))
 
-;; ═══ Branch Protection ═══
-
-;; Deny writing to .git internals (prevents force-push, hook injection)
-(deny file-write* (subpath "_PROJECT_DIR/.git"))
+;; Ordinary .git object / index / COMMIT_EDITMSG writes stay allowed so
+;; `git add` and `git commit` work when this profile is auto-detected.
+;; Hook and git-config writes remain denied by base.sb.
 
 ;; ═══ Dependabot Config ═══
 

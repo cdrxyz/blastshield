@@ -177,6 +177,8 @@ Protects GitHub authentication — prevents destructive repo operations and CI m
 | Workflow file writes | `gh auth status` |
 | CODEOWNERS writes, `gh secret set` | |
 
+Ordinary `git add` / `git commit` writes under `.git` stay allowed so agents can commit in repos that contain `.github/`. Hook and git-config writes remain denied by the base profile. Workflow files, CODEOWNERS, dependabot config, GitHub environment files, and `~/.config/gh/hosts.yml` stay write-protected.
+
 **Auto-detection trigger:** `.github/` directory
 
 ## install (Package Managers)
