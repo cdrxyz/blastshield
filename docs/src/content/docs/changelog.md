@@ -3,6 +3,10 @@ title: Changelog
 description: Recent BlastShield releases and the fixes included in each version.
 ---
 
+## v0.1.21 — 2026-08-21
+
+- Adds Seatbelt integration probes that fail if advertised hard-boundary paths can be read or written under assembled profiles: SSH private keys and cloud credentials (`base+secrets` / cloud profiles), Terraform state/lock/plan files, install lockfiles, GitHub workflow files, and `.git/hooks`.
+
 ## v0.1.20 — 2026-07-14
 
 - Allows Launch Services URL opens (`lsopen`) in the base profile so CLI agents can open the system browser for OAuth (Grok Build, Claude, Codex, MCP). Without this, interactive setup could hang with prompts stuck in "queued" after `_LSOpenURLsWithCompletionHandler` error -54.

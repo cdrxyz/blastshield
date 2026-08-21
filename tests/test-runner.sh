@@ -37,6 +37,51 @@ wait_for_file() {
     return 1
 }
 
+# Run a command inside an assembled blastshield profile.
+# Usage: sandbox_probe <home> <script> [extra_profile]
+sandbox_probe() {
+    local home="$1"
+    local script="$2"
+    local profile="${3:-}"
+    if [[ -n "$profile" ]]; then
+        HOME="$home" "$BLASTSHIELD" --no-detect --no-guard -p "$profile" /bin/sh -c "$script"
+    else
+        HOME="$home" "$BLASTSHIELD" --no-detect --no-guard /bin/sh -c "$script"
+    fi
+}
+
+# Fail if a read or write of an advertised deny path succeeds.
+# Usage: assert_fs_denied <name> <extra_profile> <read|write> <abs_path>
+assert_fs_denied() {
+    local name="$1"
+    local profile="$2"
+    local op="$3"
+    local path="$4"
+    local probe_out=""
+
+    mkdir -p "$(dirname "$path")"
+
+    if [[ "$op" == "read" ]]; then
+        printf 'BLASTSHIELD_PROBE_SECRET\n' > "$path"
+        probe_out=$(PROBE_PATH="$path" sandbox_probe "$boundary_home" 'cat "$PROBE_PATH"' "$profile" 2>&1) || true
+        if printf '%s\n' "$probe_out" | grep -q 'BLASTSHIELD_PROBE_SECRET'; then
+            fail "integration: $name" "Expected read deny; sandbox returned file contents"
+        else
+            pass "integration: $name"
+        fi
+    elif [[ "$op" == "write" ]]; then
+        printf 'ORIGINAL\n' > "$path"
+        probe_out=$(PROBE_PATH="$path" sandbox_probe "$boundary_home" 'printf leaked > "$PROBE_PATH"' "$profile" 2>&1) || true
+        if [[ "$(cat "$path" 2>/dev/null)" != "ORIGINAL" ]]; then
+            fail "integration: $name" "Expected write deny; file was modified"
+        else
+            pass "integration: $name"
+        fi
+    else
+        fail "integration: $name" "Unknown probe op: $op"
+    fi
+}
+
 # ─── Profile Syntax Tests ────────────────────────────────────────────────
 
 section "Profile Syntax Validation"
@@ -891,6 +936,47 @@ HERMIT_TERRAFORM
         pass "integration: blastshield blocks Gradle init script writes"
     fi
     rm -rf "$gradle_home"
+
+    # Test: advertised filesystem hard-boundary paths are denied under assembled profiles
+    boundary_root=$(mktemp -d "${TMPDIR:-/tmp}/blastshield-boundary.XXXXXX")
+    boundary_home="$boundary_root/home"
+    boundary_project="$boundary_root/project"
+    mkdir -p "$boundary_home" "$boundary_project"
+    boundary_old_pwd=$PWD
+    cd "$boundary_project"
+
+    while IFS='|' read -r name profile op root relpath; do
+        [[ -z "${name:-}" || "$name" == \#* ]] && continue
+        if [[ "$root" == "home" ]]; then
+            assert_fs_denied "$name" "$profile" "$op" "$boundary_home/$relpath"
+        elif [[ "$root" == "project" ]]; then
+            assert_fs_denied "$name" "$profile" "$op" "$boundary_project/$relpath"
+        else
+            fail "integration: $name" "Unknown probe root: $root"
+        fi
+    done <<'PROBES'
+deny SSH id_rsa read (base+secrets)||read|home|.ssh/id_rsa
+deny SSH id_ed25519 read (base+secrets)||read|home|.ssh/id_ed25519
+deny AWS credentials read (base+secrets)||read|home|.aws/credentials
+deny gcloud credentials read (base+secrets)||read|home|.config/gcloud/credentials/adc.json
+deny Azure credentials read (base+secrets)||read|home|.azure/msal_token_cache.json
+deny AWS credentials read (base+aws)|aws|read|home|.aws/credentials
+deny terraform.tfstate write (base+terraform)|terraform|write|project|terraform.tfstate
+deny .terraform.lock.hcl write (base+terraform)|terraform|write|project|.terraform.lock.hcl
+deny tfplan write (base+terraform)|terraform|write|project|plan.tfplan
+deny package-lock.json write (base+install)|install|write|project|package-lock.json
+deny yarn.lock write (base+install)|install|write|project|yarn.lock
+deny pnpm-lock.yaml write (base+install)|install|write|project|pnpm-lock.yaml
+deny Gemfile.lock write (base+install)|install|write|project|Gemfile.lock
+deny Cargo.lock write (base+install)|install|write|project|Cargo.lock
+deny poetry.lock write (base+install)|install|write|project|poetry.lock
+deny uv.lock write (base+install)|install|write|project|uv.lock
+deny GitHub workflow write (base+gh)|gh|write|project|.github/workflows/probe.yml
+deny .git/hooks write (base)||write|project|.git/hooks/pre-commit
+PROBES
+
+    cd "$boundary_old_pwd"
+    rm -rf "$boundary_root"
 
     # Test: .app resolution honors CFBundleExecutable instead of guessing from app name
     plist_app_tmp=$(mktemp -d)
