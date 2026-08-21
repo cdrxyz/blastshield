@@ -86,9 +86,9 @@ For AI agents, add this to their environment configuration.
 | Read-Only (auto-allow) | Mutating (requires auth) |
 |------------------------|-------------------------|
 | `list`, `describe`, `get` | `delete`, `create`, `deploy`, `update` |
-| `auth`, `status`, `version` | `add`, `remove`, `patch`, `set`, `reset` |
-| `config`, `help` | `restart`, `resize`, `enable`, `disable` |
-| | `submit`, `cancel` |
+| `auth status`, `status`, `version` | `add`, `remove`, `patch`, `set`, `reset` |
+| `config list`, `config get`, `help` | `restart`, `resize`, `enable`, `disable` |
+| | `submit`, `cancel`, `auth login`, `config set` |
 
 ### aws
 
@@ -96,7 +96,7 @@ For AI agents, add this to their environment configuration.
 |------------------------|-------------------------|
 | `describe-*`, `list-*`, `get-*` | `delete`, `create`, `put`, `update` |
 | `head-*`, `wait` | `deploy`, `terminate`, `run-*` |
-| `s3 ls`, `s3 cp` (download), `s3 presign` | `start-*`, `stop-*`, `reboot` |
+| `s3 ls`, `s3 presign` | `start-*`, `stop-*`, `reboot`, `s3 cp` |
 | `sts get-caller-identity` | `authorize`, `revoke`, `send`, `cancel` |
 | `logs describe-*`, `logs get-*` | |
 | `dynamodb scan/query/get-item` | |
@@ -194,14 +194,14 @@ For AI agents, add this to their environment configuration.
 | `doctor`, `config` | `tap *`, `untap` |
 | `leaves`, `uses`, `deps` | `link`, `unlink`, `switch` |
 | `cat`, `home`, `log` | `pin`, `unpin`, `cleanup` |
-| `options`, `version` | `migrate`, `extract` |
+| `options`, `version` | `migrate`, `extract`, `update`, `upgrade` |
 
 ### gem
 
 | Read-Only (auto-allow) | Mutating (requires auth) |
 |------------------------|-------------------------|
 | `list`, `search`, `query` | `install`, `uninstall` |
-| `spec`, `dependency` | `update *`, `build`, `push` |
+| `spec`, `dependency` | `update`, `update *`, `build`, `push` |
 | `outdated`, `info`, `help` | `owner *`, `yank`, `cleanup` |
 | `environment` | `signin`, `signout` |
 | `exec` | |
@@ -213,8 +213,8 @@ For AI agents, add this to their environment configuration.
 | `search`, `tree`, `list` | `install`, `uninstall` |
 | `locate-project`, `metadata` | `add`, `rm`, `remove` |
 | `version`, `help` | `update`, `upgrade` |
-| `publish`, `owner` | `login`, `logout` |
-| | `publish *`, `yank` |
+| | `login`, `logout` |
+| | `publish`, `publish *`, `owner`, `yank` |
 
 ### hermit
 

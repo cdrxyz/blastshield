@@ -372,6 +372,55 @@ else
     fail "blastshield-guard check aws s3 ls: should be allowed"
 fi
 
+# Test: guard check — aws s3 cp upload blocked (mutating)
+if "$GUARD" check aws s3 cp file s3://bucket/key 2>&1; then
+    fail "blastshield-guard check aws s3 cp upload: should be blocked"
+else
+    pass "blastshield-guard check aws s3 cp upload: correctly blocked"
+fi
+
+# Test: guard check — aws s3 cp download blocked (fail closed; same subcommand as upload)
+if "$GUARD" check aws s3 cp s3://bucket/key file 2>&1; then
+    fail "blastshield-guard check aws s3 cp download: should be blocked"
+else
+    pass "blastshield-guard check aws s3 cp download: correctly blocked"
+fi
+
+# Test: guard check — gcloud config set blocked (first-word 'config' must not allow mutations)
+if "$GUARD" check gcloud config set project foo 2>&1; then
+    fail "blastshield-guard check gcloud config set: should be blocked"
+else
+    pass "blastshield-guard check gcloud config set: correctly blocked"
+fi
+
+# Test: guard check — gcloud auth login blocked (first-word 'auth' must not allow mutations)
+if "$GUARD" check gcloud auth login 2>&1; then
+    fail "blastshield-guard check gcloud auth login: should be blocked"
+else
+    pass "blastshield-guard check gcloud auth login: correctly blocked"
+fi
+
+# Test: guard check — gcloud config list still allowed (read-only)
+if "$GUARD" check gcloud config list 2>&1; then
+    pass "blastshield-guard check gcloud config list: correctly allowed (read-only)"
+else
+    fail "blastshield-guard check gcloud config list: should be allowed"
+fi
+
+# Test: guard check — gcloud config get PROPERTY still allowed (read-only)
+if "$GUARD" check gcloud config get project 2>&1; then
+    pass "blastshield-guard check gcloud config get: correctly allowed (read-only)"
+else
+    fail "blastshield-guard check gcloud config get: should be allowed"
+fi
+
+# Test: guard check — gcloud auth status still allowed (read-only)
+if "$GUARD" check gcloud auth status 2>&1; then
+    pass "blastshield-guard check gcloud auth status: correctly allowed (read-only)"
+else
+    fail "blastshield-guard check gcloud auth status: should be allowed"
+fi
+
 # ─── Install Command Guard Tests ──────────────────────────────────────
 
 # Test: guard check — npm install blocked
@@ -465,6 +514,20 @@ else
     fail "blastshield-guard check brew list: should be allowed"
 fi
 
+# Test: guard check — brew update blocked (mutating)
+if "$GUARD" check brew update 2>&1; then
+    fail "blastshield-guard check brew update: should be blocked"
+else
+    pass "blastshield-guard check brew update: correctly blocked"
+fi
+
+# Test: guard check — brew upgrade blocked (mutating)
+if "$GUARD" check brew upgrade 2>&1; then
+    fail "blastshield-guard check brew upgrade: should be blocked"
+else
+    pass "blastshield-guard check brew upgrade: correctly blocked"
+fi
+
 # Test: guard check — gem install blocked
 if "$GUARD" check gem install 2>&1; then
     fail "blastshield-guard check gem install: should be blocked"
@@ -479,6 +542,13 @@ else
     fail "blastshield-guard check gem list: should be allowed"
 fi
 
+# Test: guard check — gem update blocked (mutating; bare update is not read-only)
+if "$GUARD" check gem update 2>&1; then
+    fail "blastshield-guard check gem update: should be blocked"
+else
+    pass "blastshield-guard check gem update: correctly blocked"
+fi
+
 # Test: guard check — cargo install blocked
 if "$GUARD" check cargo install 2>&1; then
     fail "blastshield-guard check cargo install: should be blocked"
@@ -491,6 +561,20 @@ if "$GUARD" check cargo search 2>&1; then
     pass "blastshield-guard check cargo search: correctly allowed (read-only)"
 else
     fail "blastshield-guard check cargo search: should be allowed"
+fi
+
+# Test: guard check — cargo publish blocked (mutating)
+if "$GUARD" check cargo publish 2>&1; then
+    fail "blastshield-guard check cargo publish: should be blocked"
+else
+    pass "blastshield-guard check cargo publish: correctly blocked"
+fi
+
+# Test: guard check — cargo owner blocked (mutating)
+if "$GUARD" check cargo owner 2>&1; then
+    fail "blastshield-guard check cargo owner: should be blocked"
+else
+    pass "blastshield-guard check cargo owner: correctly blocked"
 fi
 
 # Test: guard check — hermit install blocked

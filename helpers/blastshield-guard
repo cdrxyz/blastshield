@@ -37,8 +37,8 @@ readonly NC='\033[0m'
 # The matcher converts both pattern and subcommand to use _ for comparison
 READONLY_PATTERNS="\
 terraform:init,plan,fmt,validate,show,output,console,state_list,state_show,workspace_list,workspace_select,providers,version,graph \
-gcloud:list,describe,get,print-access-token,auth,status,version,config,help \
-aws:ec2_describe-*,ec2_list-*,s3_ls*,s3_cp*,s3_presign*,sts_get-caller-identity,logs_describe-*,logs_get-*,logs_filter-log-events,cloudformation_validate-template,dynamodb_scan*,dynamodb_query*,dynamodb_get-item,iam_list-*,iam_get-*,lambda_list-*,lambda_invoke* \
+gcloud:list,describe,get,print-access-token,auth_status,status,version,config_list,config_get*,help \
+aws:ec2_describe-*,ec2_list-*,s3_ls*,s3_presign*,sts_get-caller-identity,logs_describe-*,logs_get-*,logs_filter-log-events,cloudformation_validate-template,dynamodb_scan*,dynamodb_query*,dynamodb_get-item,iam_list-*,iam_get-*,lambda_list-*,lambda_invoke* \
 az:list,show,version,help,account_show,account_list,find \
 kubectl:get,describe,logs,top,events,api-resources,api-versions,explain,auth_can-i,config_view,config_get-contexts,rollout_status,rollout_history,version \
 gh:list,view,repo_clone*,repo_fork*,repo_view*,pr_list*,pr_view*,pr_diff*,pr_checkout*,pr_checks*,pr_status*,issue_list*,issue_view*,release_list*,release_view*,release_download*,workflow_list*,workflow_view*,run_list*,run_view*,run_watch*,auth_status*,api*,help,version \
@@ -47,9 +47,9 @@ npm:list,ls,view,info,outdated,search,version,help,pack,why,explain,doctor,audit
 yarn:list,ls,info,why,outdated,search,version,help,pack,dedupe,dir,config,plugin_list,npm_info,npm_tag,npm_view \
 pnpm:list,ls,info,why,outdated,search,version,help,pack,audit,fund,root,config,get,store_path \
 pip:list,show,search,check,freeze,config_list,config_get,debug,hash,inspect,version,help \
-brew:list,ls,info,search,desc,outdated,doctor,config,leaves,uses,deps,deps_*,options,cat,home,log,tap*,update,upgrade \
-gem:list,search,query,spec,dependency,outdated,info,help,environment,update,install_*,exec \
-cargo:search,tree,list,locate-project,metadata,version,help,publish,owner, \
+brew:list,ls,info,search,desc,outdated,doctor,config,leaves,uses,deps,deps_*,options,cat,home,log,tap* \
+gem:list,search,query,spec,dependency,outdated,info,help,environment,install_*,exec \
+cargo:search,tree,list,locate-project,metadata,version,help \
 hermit:list,search,help,version,info,env \
 apt:list,search,show,cache,policy,version,help,simulation \
 dnf:list,search,info,check,check-update,repolist,repoquery,version,help"
@@ -59,8 +59,8 @@ dnf:list,search,info,check,check-update,repolist,repoquery,version,help"
 # is treated as mutating by default, but we list explicit patterns for documentation
 MUTATING_PATTERNS="\
 terraform:apply,destroy,import,taint,untaint,refresh,state_rm,state_mv,workspace_delete,workspace_new \
-gcloud:delete,create,deploy,update,add,remove,patch,set,reset,restart,resize,enable,disable,submit,cancel \
-aws:ec2_terminate,ec2_run-,ec2_start-instances,ec2_stop-instances,ec2_reboot,s3_rb,s3_rm,s3_mb,s3api_delete,s3api_create,cloudformation_delete,cloudformation_create,cloudformation_update,dynamodb_delete,dynamodb_create,iam_delete,iam_create,iam_put,lambda_delete,lambda_create,lambda_update,rds_delete,rds_create,eks_delete,eks_create,secretsmanager_delete,secretsmanager_create,secretsmanager_put \
+gcloud:delete,create,deploy,update,add,remove,patch,set,reset,restart,resize,enable,disable,submit,cancel,login \
+aws:ec2_terminate,ec2_run-,ec2_start-instances,ec2_stop-instances,ec2_reboot,s3_rb,s3_rm,s3_mb,s3_cp*,s3api_delete,s3api_create,cloudformation_delete,cloudformation_create,cloudformation_update,dynamodb_delete,dynamodb_create,iam_delete,iam_create,iam_put,lambda_delete,lambda_create,lambda_update,rds_delete,rds_create,eks_delete,eks_create,secretsmanager_delete,secretsmanager_create,secretsmanager_put \
 az:delete,create,update,deploy,set,remove,add,lock,unlock,scale,restart \
 kubectl:apply,create,delete,patch,scale,taint,cordon,uncordon,drain,rollout_restart,rollout_undo,exec,label,annotate,set,expose,port-forward,run,cp,debug \
 gh:delete,merge,close,edit,rename,sync,run_cancel,workflow_disable,workflow_enable \
@@ -69,9 +69,9 @@ npm:install,i,ci,add,uninstall,remove,rm,r,update,pack_*,publish,deprecate,acces
 yarn:add,install,remove,upgrade-*,up,dedupe_*,cache_*,set_*,config_set,login,logout,publish,unlink,link,init \
 pnpm:add,install,i,remove,rm,update,upgrade,import,store_prune,store_add,login,logout,publish,set,config_set,rebuild,deploy,fetch \
 pip:install,uninstall,download,build,wheel,compile,config_set,config_edit \
-brew:install,reinstall,uninstall,remove,rm,tap_*,untap,link,unlink,switch,pin,unpin,cleanup,migrate,extract \
-gem:install,uninstall,update_*,build,push,owner_*,yank,cleanup,environment_*,signin,signout \
-cargo:install,uninstall,add,rm,remove,update,upgrade,login,logout,publish_*,yank \
+brew:install,reinstall,uninstall,remove,rm,tap_*,untap,link,unlink,switch,pin,unpin,cleanup,migrate,extract,update,upgrade \
+gem:install,uninstall,update,update_*,build,push,owner_*,yank,cleanup,environment_*,signin,signout \
+cargo:install,uninstall,add,rm,remove,update,upgrade,login,logout,publish,publish_*,owner,yank \
 hermit:install,uninstall,upgrade \
 apt:install,remove,purge,autoremove,autoclean,clean,mark,source \
 dnf:install,remove,autoremove,clean,upgrade,upgrade-minimal,distro-sync"
@@ -508,10 +508,10 @@ USAGE:
 GUARDED CLIS:
     terraform:  apply, destroy, import, taint → blocked
                 init, plan, fmt, validate, show → allowed
-    gcloud:     delete, create, deploy, update → blocked
-                list, describe, get, status → allowed
-    aws:        delete, create, put, terminate → blocked
-                describe-, list-, get- → allowed
+    gcloud:     delete, create, deploy, update, config set, auth login → blocked
+                list, describe, get, status, config list/get, auth status → allowed
+    aws:        delete, create, put, terminate, s3 cp → blocked
+                describe-, list-, get-, s3 ls, s3 presign → allowed
     az:         delete, create, update, deploy → blocked
                 list, show, version → allowed
     kubectl:    apply, create, delete, exec → blocked
@@ -529,11 +529,11 @@ GUARDED CLIS:
                 list, info, why, outdated → allowed
     pip:        install, uninstall, build → blocked
                 list, show, search, freeze → allowed
-    brew:       install, reinstall, uninstall → blocked
+    brew:       install, reinstall, uninstall, update, upgrade → blocked
                 list, info, search, outdated → allowed
-    gem:        install, uninstall, build → blocked
+    gem:        install, uninstall, update, build → blocked
                 list, search, query, spec → allowed
-    cargo:      install, uninstall, add, rm → blocked
+    cargo:      install, uninstall, add, rm, publish, owner → blocked
                 search, tree, list, metadata → allowed
     hermit:     install, uninstall, upgrade → blocked
                 list, search, help, info → allowed
