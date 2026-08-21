@@ -284,6 +284,14 @@ assemble_profile() {
             echo ""
         done
 
+        # Seatbelt is last-match-wins. Emit this deny after every included
+        # profile so a later custom -p that re-allows temp cannot reopen
+        # the runtime wrapper directory.
+        echo ";; ═══ Runtime guard wrappers ═══"
+        echo ";; Last-match-wins: deny writes after any later profile that re-allows temp."
+        echo "(deny file-write* (subpath \"$guard_dir\"))"
+        echo ""
+
     } > "$output_file"
 }
 

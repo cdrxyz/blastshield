@@ -85,7 +85,7 @@ This layer handles what `sandbox-exec` cannot see: **which subcommands the agent
 2. **Intercept** — When the agent runs `terraform destroy`, the wrapper (found first on PATH) intercepts it
 3. **Block** — Destructive subcommands are blocked inside the agent sandbox
 4. **Pass-through** — Non-destructive commands execute immediately without interruption
-5. **Wrapper integrity** — Layer 1 denies writes to the runtime guard directory so the sandboxed process cannot overwrite those wrappers
+5. **Wrapper integrity** — Layer 1 denies writes to the runtime guard directory (emitted last in the assembled profile) so the sandboxed process cannot overwrite those wrappers
 
 ### Guarded Commands
 

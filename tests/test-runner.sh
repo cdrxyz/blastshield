@@ -187,13 +187,6 @@ else
     fail "profile 'base': missing runtime guard directory write deny" "Sandboxed processes could overwrite PATH wrappers under temp"
 fi
 
-# Test: assembled profiles substitute the runtime guard directory path
-if grep -qF 's/_GUARD_DIR/' "$BLASTSHIELD"; then
-    pass "blastshield: substitutes _GUARD_DIR when assembling profiles"
-else
-    fail "blastshield: missing _GUARD_DIR substitution" "base.sb deny is ineffective unless the real guard path is injected"
-fi
-
 # Test: auto-detection function doesn't crash
 status_out2=$("$BLASTSHIELD" --status 2>&1) || true
 if echo "$status_out2" | grep -qE "(Available|Detected|Built-in|profiles)"; then
@@ -768,17 +761,11 @@ HERMIT_TERRAFORM
     fi
     rm -f "$hermit_fixture_marker"
 
-    # Test: sandboxed process cannot overwrite runtime Layer 2 wrappers
-    guard_probe=$(mktemp -d "${TMPDIR:-/tmp}/blastshield-guard-probe.XXXXXX")
-    mkdir -p "$guard_probe/bin"
-    cat > "$guard_probe/bin/terraform" <<'EOF'
-#!/bin/sh
-echo REAL_TERRAFORM
-EOF
-    chmod +x "$guard_probe/bin/terraform"
-
-    guard_write_out=""
-    if guard_write_out=$(PATH="$guard_probe/bin:$PATH" "$BLASTSHIELD" --no-detect /bin/sh -c '
+    # Probe used by runtime-guard write tests. Prints "denied" and exits 1
+    # when overwrite/create/mv/chmod/rm/rename all fail, and also checks
+    # that the assembled profile substituted the real guard path and emitted
+    # the deny last. Exits 0 if any mutation succeeded.
+    guard_dir_probe='
         first="${PATH%%:*}"
         case "$first" in
             */blastshield.guard.*) ;;
@@ -798,22 +785,97 @@ EOF
             exit 4
         fi
         rm -f "$tmp_probe"
+
+        assembled=""
+        for dir in "${TMPDIR:-/tmp}" /tmp /private/tmp; do
+            [ -d "$dir" ] || continue
+            for f in "$dir"/blastshield.sb.*; do
+                [ -f "$f" ] || continue
+                if grep -q "blastshield assembled profile" "$f" 2>/dev/null &&
+                    grep -F -q "$first" "$f" 2>/dev/null; then
+                    assembled="$f"
+                    break 2
+                fi
+            done
+        done
+        if [ -z "$assembled" ]; then
+            printf "assembled profile not found for %s\n" "$first"
+            exit 5
+        fi
+        if grep -q "_GUARD_DIR" "$assembled"; then
+            printf "assembled profile still contains _GUARD_DIR placeholder\n"
+            exit 6
+        fi
+        if ! grep -F -q "(deny file-write* (subpath \"$first\"))" "$assembled"; then
+            printf "assembled profile missing substituted guard deny for %s\n" "$first"
+            exit 7
+        fi
+        if ! tail -n 8 "$assembled" | grep -F -q "(deny file-write* (subpath \"$first\"))"; then
+            printf "guard deny was not emitted last in assembled profile\n"
+            exit 8
+        fi
+
         if printf pwned > "$first/terraform" 2>/dev/null; then
-            printf 'wrapper overwrite succeeded\n'
+            printf "wrapper overwrite succeeded\n"
             exit 0
         fi
         if printf pwned > "$first/pwned-wrapper" 2>/dev/null; then
-            printf 'guard dir create succeeded\n'
+            printf "guard dir create succeeded\n"
             exit 0
         fi
-        printf 'denied\n'
+        if mv "$first/terraform" "$first/terraform.pwned" 2>/dev/null; then
+            printf "wrapper mv succeeded\n"
+            exit 0
+        fi
+        if chmod 777 "$first/terraform" 2>/dev/null; then
+            printf "wrapper chmod succeeded\n"
+            exit 0
+        fi
+        if rm "$first/terraform" 2>/dev/null || [ ! -f "$first/terraform" ]; then
+            printf "wrapper rm succeeded\n"
+            exit 0
+        fi
+        if mv "$first" "${first}.renamed" 2>/dev/null; then
+            printf "guard dir rename succeeded\n"
+            exit 0
+        fi
+        printf "denied\n"
         exit 1
-    ' 2>&1); then
+    '
+
+    # Test: sandboxed process cannot overwrite runtime Layer 2 wrappers
+    guard_probe=$(mktemp -d "${TMPDIR:-/tmp}/blastshield-guard-probe.XXXXXX")
+    mkdir -p "$guard_probe/bin"
+    cat > "$guard_probe/bin/terraform" <<'EOF'
+#!/bin/sh
+echo REAL_TERRAFORM
+EOF
+    chmod +x "$guard_probe/bin/terraform"
+
+    guard_write_out=""
+    if guard_write_out=$(PATH="$guard_probe/bin:$PATH" "$BLASTSHIELD" --no-detect /bin/sh -c "$guard_dir_probe" 2>&1); then
         fail "integration: blastshield blocks writes to runtime guard wrappers" "$guard_write_out"
     elif echo "$guard_write_out" | grep -q "denied"; then
         pass "integration: blastshield blocks writes to runtime guard wrappers"
     else
         fail "integration: blastshield blocks writes to runtime guard wrappers" "$guard_write_out"
+    fi
+
+    # A later custom profile that re-allows temp must not reopen the guard dir.
+    reallow_tmp_sb="$guard_probe/reallow-tmp.sb"
+    cat > "$reallow_tmp_sb" <<'EOF'
+(version 1)
+(allow file-write* (subpath "_TMPDIR"))
+(allow file-write* (subpath "/private/tmp"))
+(allow file-write* (subpath "/var/folders"))
+EOF
+    guard_reallow_out=""
+    if guard_reallow_out=$(PATH="$guard_probe/bin:$PATH" "$BLASTSHIELD" --no-detect -p "$reallow_tmp_sb" /bin/sh -c "$guard_dir_probe" 2>&1); then
+        fail "integration: last-emitted guard deny survives later temp re-allow" "$guard_reallow_out"
+    elif echo "$guard_reallow_out" | grep -q "denied"; then
+        pass "integration: last-emitted guard deny survives later temp re-allow"
+    else
+        fail "integration: last-emitted guard deny survives later temp re-allow" "$guard_reallow_out"
     fi
     rm -rf "$guard_probe"
 

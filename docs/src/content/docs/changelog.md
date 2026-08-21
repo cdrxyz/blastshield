@@ -6,8 +6,8 @@ description: Recent BlastShield releases and the fixes included in each version.
 ## v0.1.21 — 2026-08-21
 
 - Denies sandboxed writes to the runtime Layer 2 guard directory so an agent cannot overwrite `$PATH`'s first `terraform` / `aws` / `kubectl` wrapper and skip `is_mutating`.
-- Keeps temporary runtime wrappers as the default injection mechanism; the assembled base profile now substitutes `_GUARD_DIR` after those wrappers are created.
-- Adds coverage that a process inside the sandbox cannot write into the guard directory or replace a wrapper, while unrelated temp writes still succeed.
+- Keeps temporary runtime wrappers as the default injection mechanism; the assembled profile substitutes `_GUARD_DIR` after those wrappers are created and emits the write deny last so a later custom `-p` that re-allows temp cannot reopen the directory (Seatbelt last-match-wins).
+- Adds coverage that a process inside the sandbox cannot overwrite, `mv`, `chmod`, or `rm` a wrapper, create a file in the guard directory, or rename the guard directory, while unrelated temp writes still succeed.
 
 ## v0.1.20 — 2026-07-14
 
