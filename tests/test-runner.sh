@@ -195,10 +195,10 @@ else
 fi
 
 # Test: gh profile still denies GitHub-specific paths
-if grep -q '(deny file-write* (subpath "_PROJECT_DIR/.github/workflows"))' "$PROFILES_DIR/gh.sb" &&
-    grep -q '(deny file-write* (literal "_PROJECT_DIR/.github/CODEOWNERS"))' "$PROFILES_DIR/gh.sb" &&
-    grep -q '(deny file-read* (literal "_HOME/.config/gh/hosts.yml"))' "$PROFILES_DIR/gh.sb" &&
-    grep -q '(deny file-write* (subpath "_HOME/.config/gh"))' "$PROFILES_DIR/gh.sb"; then
+if grep -Fq '(deny file-write* (subpath "_PROJECT_DIR/.github/workflows"))' "$PROFILES_DIR/gh.sb" &&
+    grep -Fq '(deny file-write* (literal "_PROJECT_DIR/.github/CODEOWNERS"))' "$PROFILES_DIR/gh.sb" &&
+    grep -Fq '(deny file-read* (literal "_HOME/.config/gh/hosts.yml"))' "$PROFILES_DIR/gh.sb" &&
+    grep -Fq '(deny file-write* (subpath "_HOME/.config/gh"))' "$PROFILES_DIR/gh.sb"; then
     pass "profile 'gh': still denies workflows, CODEOWNERS, and hosts.yml"
 else
     fail "profile 'gh': missing GitHub-specific path denies" "Keep workflow / CODEOWNERS / hosts.yml denies"
