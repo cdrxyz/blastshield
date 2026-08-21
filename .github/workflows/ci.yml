@@ -97,12 +97,14 @@ jobs:
               sed -e "s/_HOME/\\/Users\\/runner/g" \
                   -e "s/_PROJECT_DIR/\\/Users\\/runner\\/project/g" \
                   -e "s/_TMPDIR/\\/tmp/g" \
+                  -e "s/_GUARD_DIR/\\/tmp\\/blastshield.guard.none/g" \
                   "$profile" > "$tmp"
             else
               # Compose: base.sb + this profile (sandbox-exec applies last-match-wins)
               sed -e "s/_HOME/\\/Users\\/runner/g" \
                   -e "s/_PROJECT_DIR/\\/Users\\/runner\\/project/g" \
                   -e "s/_TMPDIR/\\/tmp/g" \
+                  -e "s/_GUARD_DIR/\\/tmp\\/blastshield.guard.none/g" \
                   profiles/base.sb "$profile" > "$tmp"
             fi
 

@@ -94,6 +94,7 @@ for profile in "$PROFILES_DIR"/*.sb; do
         sed -e "s/_HOME/\/Users\/test/g" \
             -e "s/_PROJECT_DIR/\/Users\/test\/project/g" \
             -e "s/_TMPDIR/\/tmp/g" \
+            -e "s/_GUARD_DIR/\/tmp\/blastshield.guard.none/g" \
             "$profile" > "$tmp"
 
         if sandbox-exec -n -f "$tmp" true 2>/dev/null; then
@@ -177,6 +178,20 @@ if grep -q '^(allow lsopen)$' "$PROFILES_DIR/base.sb"; then
     pass "profile 'base': allows Launch Services URL opens for CLI OAuth"
 else
     fail "profile 'base': missing Launch Services URL open support" "Without (allow lsopen), browser OAuth fails with error -54 and interactive setup can hang queued"
+fi
+
+# Test: base profile denies writes to the runtime Layer 2 guard directory
+if grep -qF '(deny file-write* (subpath "_GUARD_DIR"))' "$PROFILES_DIR/base.sb"; then
+    pass "profile 'base': denies writes to runtime guard directory"
+else
+    fail "profile 'base': missing runtime guard directory write deny" "Sandboxed processes could overwrite PATH wrappers under temp"
+fi
+
+# Test: assembled profiles substitute the runtime guard directory path
+if grep -qF 's/_GUARD_DIR/' "$BLASTSHIELD"; then
+    pass "blastshield: substitutes _GUARD_DIR when assembling profiles"
+else
+    fail "blastshield: missing _GUARD_DIR substitution" "base.sb deny is ineffective unless the real guard path is injected"
 fi
 
 # Test: auto-detection function doesn't crash
@@ -752,6 +767,55 @@ HERMIT_TERRAFORM
         pass "integration: blastshield blocks fixture Hermit gcloud delete"
     fi
     rm -f "$hermit_fixture_marker"
+
+    # Test: sandboxed process cannot overwrite runtime Layer 2 wrappers
+    guard_probe=$(mktemp -d "${TMPDIR:-/tmp}/blastshield-guard-probe.XXXXXX")
+    mkdir -p "$guard_probe/bin"
+    cat > "$guard_probe/bin/terraform" <<'EOF'
+#!/bin/sh
+echo REAL_TERRAFORM
+EOF
+    chmod +x "$guard_probe/bin/terraform"
+
+    guard_write_out=""
+    if guard_write_out=$(PATH="$guard_probe/bin:$PATH" "$BLASTSHIELD" --no-detect /bin/sh -c '
+        first="${PATH%%:*}"
+        case "$first" in
+            */blastshield.guard.*) ;;
+            *)
+                printf "first PATH entry is not a runtime guard dir: %s\n" "$first"
+                exit 2
+                ;;
+        esac
+        if [ ! -f "$first/terraform" ]; then
+            printf "runtime terraform wrapper missing in %s\n" "$first"
+            exit 3
+        fi
+        tmp_probe="${TMPDIR:-/tmp}/blastshield-guard-write-ok.$$"
+        if ! printf ok > "$tmp_probe" 2>/dev/null; then
+            printf "unrelated temp write failed\n"
+            rm -f "$tmp_probe"
+            exit 4
+        fi
+        rm -f "$tmp_probe"
+        if printf pwned > "$first/terraform" 2>/dev/null; then
+            printf 'wrapper overwrite succeeded\n'
+            exit 0
+        fi
+        if printf pwned > "$first/pwned-wrapper" 2>/dev/null; then
+            printf 'guard dir create succeeded\n'
+            exit 0
+        fi
+        printf 'denied\n'
+        exit 1
+    ' 2>&1); then
+        fail "integration: blastshield blocks writes to runtime guard wrappers" "$guard_write_out"
+    elif echo "$guard_write_out" | grep -q "denied"; then
+        pass "integration: blastshield blocks writes to runtime guard wrappers"
+    else
+        fail "integration: blastshield blocks writes to runtime guard wrappers" "$guard_write_out"
+    fi
+    rm -rf "$guard_probe"
 
     # Test: assembled profile substitutes _PROJECT_DIR and allows project writes
     project_probe="$REPO_DIR/.blastshield-project-write-test"

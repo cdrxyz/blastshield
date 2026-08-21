@@ -3,6 +3,12 @@ title: Changelog
 description: Recent BlastShield releases and the fixes included in each version.
 ---
 
+## v0.1.21 — 2026-08-21
+
+- Denies sandboxed writes to the runtime Layer 2 guard directory so an agent cannot overwrite `$PATH`'s first `terraform` / `aws` / `kubectl` wrapper and skip `is_mutating`.
+- Keeps temporary runtime wrappers as the default injection mechanism; the assembled base profile now substitutes `_GUARD_DIR` after those wrappers are created.
+- Adds coverage that a process inside the sandbox cannot write into the guard directory or replace a wrapper, while unrelated temp writes still succeed.
+
 ## v0.1.20 — 2026-07-14
 
 - Allows Launch Services URL opens (`lsopen`) in the base profile so CLI agents can open the system browser for OAuth (Grok Build, Claude, Codex, MCP). Without this, interactive setup could hang with prompts stuck in "queued" after `_LSOpenURLsWithCompletionHandler` error -54.
