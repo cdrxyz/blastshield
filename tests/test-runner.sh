@@ -615,6 +615,30 @@ else
     fail "blastshield-guard check aws/kubectl value-flag two-level reads: should be allowed"
 fi
 
+# Test: guard check — additional two-level reads with other value flags
+if "$GUARD" check aws --region us-east-1 s3 ls 2>&1 &&
+    "$GUARD" check kubectl --context prod get pods 2>&1 &&
+    "$GUARD" check gcloud --project myproj compute instances list 2>&1 &&
+    "$GUARD" check az --resource-group myrg account list 2>&1 &&
+    "$GUARD" check helm --namespace default list 2>&1; then
+    pass "blastshield-guard check additional value-flag two-level reads: correctly allowed"
+else
+    fail "blastshield-guard check additional value-flag two-level reads: should be allowed"
+fi
+
+# Test: guard check — unknown value flag leftover + unlisted write fail-closed
+if "$GUARD" check kubectl --not-a-real-flag get replace 2>&1; then
+    fail "blastshield-guard check kubectl --not-a-real-flag get replace: should be blocked"
+else
+    pass "blastshield-guard check kubectl --not-a-real-flag get replace: unknown leftover + unlisted write correctly blocked"
+fi
+
+if "$GUARD" check terraform --not-a-real-flag plan force-unlock 2>&1; then
+    fail "blastshield-guard check terraform --not-a-real-flag plan force-unlock: should be blocked"
+else
+    pass "blastshield-guard check terraform --not-a-real-flag plan force-unlock: unknown leftover + unlisted write correctly blocked"
+fi
+
 # Test: guard check — leftover readonly-looking value cannot allow unlisted mutating verbs
 if "$GUARD" check kubectl --namespace get replace 2>&1; then
     fail "blastshield-guard check kubectl --namespace get replace: should be blocked"

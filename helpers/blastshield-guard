@@ -119,11 +119,12 @@ is_known_value_flag() {
         --profile|--region|--output|--query|--endpoint-url|\
         --project|--account|--configuration|--filter|--format|--verbosity|\
         --namespace|--context|--cluster|--user|--kubeconfig|--kube-context|\
-        --as|--token|--server|--request-timeout|--field-selector|--selector|\
+        --as|--as-group|--token|--server|--request-timeout|--field-selector|--selector|\
         --var|--var-file|--backend-config|--target|--chdir|-chdir|-var|-var-file|\
         --repo|--hostname|--jq|--template|--json|--method|\
         --prefix|--registry|--workspace|--userconfig|--globalconfig|\
-        -n|-R|-o|-l|-s)
+        --resource-group|--impersonate-service-account|--filename|\
+        -n|-R|-o|-l|-s|-f)
             return 0
             ;;
     esac
@@ -213,9 +214,13 @@ matches_pattern() {
     # e.g., "get_pods" → try "get" against patterns
     # Also try the last word for gcloud-style CLIs where verb comes last
     # e.g., "compute_instances_list" → try "list" against patterns
+    # First-word matches require remaining tokens to look like resource args
+    # so a leftover readonly word cannot bless an extra unlisted verb
+    # (`get replace`, `plan force-unlock`). Last-word matches stay unchanged.
     if [[ "$subcmd" == *_* ]]; then
         local first_word="${subcmd%%_*}"
         local last_word="${subcmd##*_}"
+        local rest="${subcmd#*_}"
         IFS=','
         for pattern in $patterns; do
             IFS="$IFS_OLD"
@@ -223,8 +228,10 @@ matches_pattern() {
             [[ -z "$pattern" ]] && continue
             case "$first_word" in
                 $pattern)
-                    IFS="$IFS_OLD"
-                    return 0
+                    if first_word_readonly_remainder_ok "$first_word" "$rest"; then
+                        IFS="$IFS_OLD"
+                        return 0
+                    fi
                     ;;
             esac
             case "$last_word" in
@@ -238,6 +245,56 @@ matches_pattern() {
 
     IFS="$IFS_OLD"
     return 1
+}
+
+# Remaining tokens after a first-word readonly match. Name-taking read
+# verbs (logs, describe) accept any extra token. Other verbs only accept
+# resource-shaped extras so `get replace` / `plan force-unlock` fail closed
+# when an unknown value flag left a readonly-looking leftover in front.
+is_resource_arg_token() {
+    local w="$1"
+    local wl
+    [[ -z "$w" ]] && return 0
+    wl=$(printf '%s' "$w" | tr '[:upper:]' '[:lower:]')
+    case "$wl" in
+        */*|*:*|*.*)
+            return 0
+            ;;
+        *-*)
+            return 1
+            ;;
+    esac
+    [[ "$wl" == *[0-9]* ]] && return 0
+    case "$wl" in
+        pod|pods|deploy|deployment|deployments|svc|service|services|\
+        ns|namespace|namespaces|node|nodes|cm|configmap|secret|secrets|\
+        ing|ingress|job|jobs|instance|instances|bucket|buckets|\
+        cluster|clusters|vm|vms|disk|disks|image|images)
+            return 0
+            ;;
+    esac
+    [[ "$wl" == *[s] ]]
+}
+
+first_word_readonly_remainder_ok() {
+    local first="$1"
+    local rest="$2"
+    local first_lc tok
+    [[ -z "$rest" ]] && return 0
+    first_lc=$(printf '%s' "$first" | tr '[:upper:]' '[:lower:]')
+    case "$first_lc" in
+        logs|describe|explain|top|events|show|view|info|cat|search)
+            return 0
+            ;;
+    esac
+    local IFS_OLD="$IFS"
+    IFS='_'
+    local -a parts=($rest)
+    IFS="$IFS_OLD"
+    for tok in "${parts[@]}"; do
+        is_resource_arg_token "$tok" || return 1
+    done
+    return 0
 }
 
 # True if token matches a glob pattern, case-insensitively.
