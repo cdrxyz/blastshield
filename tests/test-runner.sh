@@ -187,6 +187,92 @@ else
     fail "auto-detection: --status missing expected sections"
 fi
 
+# Test: unknown explicit -p/--profile names abort and do not run the command
+unknown_marker=$(mktemp "${TMPDIR:-/tmp}/blastshield-unknown-profile.XXXXXX")
+rm -f "$unknown_marker"
+unknown_status=0
+unknown_out=$("$BLASTSHIELD" --no-detect --no-guard -p terrafrom /bin/sh -c "printf ran > '$unknown_marker'" 2>&1) || unknown_status=$?
+if [[ $unknown_status -ne 0 && ! -e "$unknown_marker" ]] && echo "$unknown_out" | grep -q "Profile not found: terrafrom"; then
+    pass "blastshield: unknown explicit -p profile aborts without running the command"
+else
+    fail "blastshield: unknown explicit -p profile should abort without running the command" \
+        "status=$unknown_status marker=$([[ -e $unknown_marker ]] && echo present || echo absent) output=$unknown_out"
+fi
+rm -f "$unknown_marker"
+
+# Test: empty explicit -p/--profile name is fatal at parse time
+empty_marker=$(mktemp "${TMPDIR:-/tmp}/blastshield-empty-profile.XXXXXX")
+rm -f "$empty_marker"
+empty_status=0
+empty_out=$("$BLASTSHIELD" --no-detect --no-guard -p '' /bin/sh -c "printf ran > '$empty_marker'" 2>&1) || empty_status=$?
+if [[ $empty_status -ne 0 && ! -e "$empty_marker" ]] && echo "$empty_out" | grep -Fq -- '--profile requires a non-empty name'; then
+    pass "blastshield: empty explicit -p profile aborts without running the command"
+else
+    fail "blastshield: empty explicit -p profile should abort without running the command" \
+        "status=$empty_status marker=$([[ -e $empty_marker ]] && echo present || echo absent) output=$empty_out"
+fi
+rm -f "$empty_marker"
+
+# Test: whitespace-only explicit -p/--profile name is fatal at parse time
+ws_status=0
+ws_out=$("$BLASTSHIELD" --no-detect --no-guard -p ' ' /usr/bin/true 2>&1) || ws_status=$?
+if [[ $ws_status -ne 0 ]] && echo "$ws_out" | grep -Fq -- '--profile requires a non-empty name'; then
+    pass "blastshield: whitespace-only explicit -p profile aborts"
+else
+    fail "blastshield: whitespace-only explicit -p profile should abort" \
+        "status=$ws_status output=$ws_out"
+fi
+
+# Test: a real explicit profile still works through assemble (not --version short-circuit)
+happy_status=0
+happy_out=$("$BLASTSHIELD" --no-detect --no-guard -p terraform /usr/bin/true 2>&1) || happy_status=$?
+if ! echo "$happy_out" | grep -q "Profile not found" &&
+    { [[ $happy_status -eq 0 ]] || echo "$happy_out" | grep -q "sandbox-exec not found"; }; then
+    pass "blastshield: explicit -p terraform still succeeds"
+else
+    fail "blastshield: explicit -p terraform should assemble and continue" \
+        "status=$happy_status output=$happy_out"
+fi
+
+# Test: missing auto-detected profile still skip-and-warns and continues
+optional_tmp=$(mktemp -d "${TMPDIR:-/tmp}/blastshield-optional-profile.XXXXXX")
+mkdir -p "$optional_tmp/profiles"
+cp "$BLASTSHIELD" "$optional_tmp/blastshield"
+cp "$PROFILES_DIR/base.sb" "$PROFILES_DIR/secrets.sb" "$optional_tmp/profiles/"
+chmod +x "$optional_tmp/blastshield"
+touch "$optional_tmp/main.tf"
+optional_status=0
+optional_out=$(cd "$optional_tmp" && ./blastshield --no-guard /usr/bin/true 2>&1) || optional_status=$?
+if echo "$optional_out" | grep -q "Profile not found: terraform (skipping)" &&
+    { [[ $optional_status -eq 0 ]] || echo "$optional_out" | grep -q "sandbox-exec not found"; }; then
+    pass "blastshield: missing auto-detected profile skip-and-warns and continues"
+else
+    fail "blastshield: missing auto-detected profile should skip-and-warn and continue" \
+        "status=$optional_status output=$optional_out"
+fi
+rm -rf "$optional_tmp"
+
+# Lock: warn() during assemble must not appear in the assembled SBPL
+lock_dir=$(mktemp -d "${TMPDIR:-/tmp}/blastshield-assemble-warn-lock.XXXXXX")
+mkdir -p "$lock_dir/profiles"
+cp "$PROFILES_DIR/base.sb" "$PROFILES_DIR/secrets.sb" "$lock_dir/profiles/"
+sed '/^main "\$@"$/d' "$BLASTSHIELD" > "$lock_dir/blastshield"
+lock_sb="$lock_dir/assembled.sb"
+lock_err=""
+lock_status=0
+lock_err=$(cd "$lock_dir" && bash -c '. ./blastshield; explicit_profiles=(); assemble_profile "$1" base terraform' bash "$lock_sb" 2>&1) || lock_status=$?
+if [[ $lock_status -eq 0 && -f "$lock_sb" ]] &&
+    echo "$lock_err" | grep -q "Profile not found: terraform (skipping)" &&
+    grep -q ';; Profile not found: terraform (skipping)' "$lock_sb" &&
+    ! grep -q '\[blastshield\]' "$lock_sb" &&
+    grep -q '^(version 1)$' "$lock_sb"; then
+    pass "blastshield: warn during assemble stays off the generated SBPL"
+else
+    fail "blastshield: warn during assemble must not appear in the assembled SBPL" \
+        "status=$lock_status err=$lock_err file=$(cat "$lock_sb" 2>/dev/null)"
+fi
+rm -rf "$lock_dir"
+
 # ─── Guard Tests ──────────────────────────────────────────────────────────
 
 section "BlastShield Guard Tests"

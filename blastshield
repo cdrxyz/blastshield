@@ -18,6 +18,7 @@ readonly GUARD_SCRIPT="${SCRIPT_DIR}/helpers/blastshield-guard"
 BLASTSHIELD_TMP_PROFILE=""
 BLASTSHIELD_TMP_GUARD_DIR=""
 BLASTSHIELD_TMP_SHELL_ENV_DIR=""
+explicit_profiles=()
 
 # Colors (disabled if not a terminal)
 if [[ -t 1 ]]; then
@@ -41,7 +42,7 @@ CLOUD_PROFILES=("terraform" "gcloud" "aws" "azure" "kubectl" "gh" "install")
 # ─── Helpers ──────────────────────────────────────────────────────────────
 
 info()  { echo -e "${CYAN}[blastshield]${NC} $*"; }
-warn()  { echo -e "${YELLOW}[blastshield]${NC} $*"; }
+warn()  { echo -e "${YELLOW}[blastshield]${NC} $*" >&2; }
 error() { echo -e "${RED}[blastshield]${NC} $*" >&2; }
 die()   { error "$@"; exit 1; }
 
@@ -61,6 +62,16 @@ cleanup() {
 
 sed_escape_replacement() {
     printf '%s' "$1" | sed -e 's/[\/&]/\\&/g'
+}
+
+# True when NAME was requested with an explicit -p/--profile flag.
+is_explicit_profile() {
+    local name="$1"
+    local candidate
+    for candidate in "${explicit_profiles[@]:-}"; do
+        [[ -n "$candidate" && "$candidate" == "$name" ]] && return 0
+    done
+    return 1
 }
 
 # Resolve a profile name to its file path
@@ -255,7 +266,11 @@ assemble_profile() {
         for name in "${profile_names[@]}"; do
             local path
             if ! path=$(resolve_profile "$name"); then
+                if is_explicit_profile "$name"; then
+                    die "Profile not found: $name"
+                fi
                 warn "Profile not found: $name (skipping)"
+                echo ";; Profile not found: $name (skipping)"
                 continue
             fi
 
@@ -467,6 +482,7 @@ show_status() {
 main() {
     local profiles=("${DEFAULT_PROFILES[@]}")
     local extra_profiles=()
+    explicit_profiles=()
     local clean_env=false
     local guard_enabled=true
     auto_detect=true
@@ -481,7 +497,9 @@ main() {
         case "$1" in
             -p|--profile)
                 [[ $# -lt 2 ]] && die "--profile requires an argument"
+                [[ "$2" != *[![:space:]]* ]] && die "--profile requires a non-empty name"
                 extra_profiles+=("$2")
+                explicit_profiles+=("$2")
                 shift 2
                 ;;
             --no-detect)
@@ -525,7 +543,7 @@ USAGE:
 
 OPTIONS:
     -p, --profile NAME    Load additional profile (repeatable)
-                          Built-in: terraform, gcloud, aws, azure, kubectl, gh
+                          Unknown names abort. Built-in: terraform, gcloud, aws, azure, kubectl, gh
     --no-guard            Disable automatic command-argument guard injection
     --no-detect           Disable auto-detection of cloud profiles
     --detach              For GUI app launches, return immediately instead of streaming logs

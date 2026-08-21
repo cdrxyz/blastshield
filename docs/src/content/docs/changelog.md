@@ -3,6 +3,15 @@ title: Changelog
 description: Recent BlastShield releases and the fixes included in each version.
 ---
 
+## v0.1.21 — 2026-08-21
+
+- Aborts when an explicit `-p` / `--profile` name cannot be resolved, instead of warning and launching without that layer.
+- Rejects an empty or whitespace-only `-p` / `--profile` name at parse time.
+- Leaves missing auto-detected profiles as skip-and-warn on stderr so optional project detection still does not block a normal launch or write raw text into the assembled SBPL.
+- Sends all `warn()` output to stderr, matching `error()`, so any future assemble-group warning cannot poison the generated SBPL.
+- Documents the hard fail in `--help` and the profiles reference.
+- Adds wrapper tests for unknown, empty, and whitespace-only `-p` names, a valid explicit `-p terraform` assemble path, skip-and-warn plus continue for a missing auto-detected profile, and a lock that assemble-time warns stay out of the generated `.sb` file.
+
 ## v0.1.20 — 2026-07-14
 
 - Allows Launch Services URL opens (`lsopen`) in the base profile so CLI agents can open the system browser for OAuth (Grok Build, Claude, Codex, MCP). Without this, interactive setup could hang with prompts stuck in "queued" after `_LSOpenURLsWithCompletionHandler` error -54.
