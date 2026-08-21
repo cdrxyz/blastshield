@@ -48,6 +48,8 @@ Load with `-p`:
 blastshield -p custom claude
 ```
 
+Unknown explicit `-p` / `--profile` names abort the launch so a typo or missing install file cannot silently drop a protection layer. Missing auto-detected profiles still warn and skip.
+
 ---
 
 ## base (Always Loaded)
@@ -254,7 +256,7 @@ Profiles are loaded in this order:
 2. `secrets` — always (credential and SSH key protection)
 3. GUI compatibility profiles — `gui-app` for `.app` bundles, plus `conductor-app` for Conductor
 4. Auto-detected profiles — based on project directory contents
-5. Explicitly specified profiles — via `-p` flag
+5. Explicitly specified profiles — via `-p` flag. Unknown names abort.
 
 For GUI app launches, `secrets` is skipped and project profile auto-detection is skipped. Explicit profiles still apply.
 

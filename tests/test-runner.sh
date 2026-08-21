@@ -187,6 +187,19 @@ else
     fail "auto-detection: --status missing expected sections"
 fi
 
+# Test: unknown explicit -p/--profile names abort and do not run the command
+unknown_marker=$(mktemp "${TMPDIR:-/tmp}/blastshield-unknown-profile.XXXXXX")
+rm -f "$unknown_marker"
+unknown_status=0
+unknown_out=$("$BLASTSHIELD" --no-detect --no-guard -p terrafrom /bin/sh -c "printf ran > '$unknown_marker'" 2>&1) || unknown_status=$?
+if [[ $unknown_status -ne 0 && ! -e "$unknown_marker" ]] && echo "$unknown_out" | grep -q "Profile not found: terrafrom"; then
+    pass "blastshield: unknown explicit -p profile aborts without running the command"
+else
+    fail "blastshield: unknown explicit -p profile should abort without running the command" \
+        "status=$unknown_status marker=$([[ -e $unknown_marker ]] && echo present || echo absent) output=$unknown_out"
+fi
+rm -f "$unknown_marker"
+
 # ─── Guard Tests ──────────────────────────────────────────────────────────
 
 section "BlastShield Guard Tests"
