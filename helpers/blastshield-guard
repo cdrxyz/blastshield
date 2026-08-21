@@ -132,10 +132,11 @@ get_subcommand() {
                 break
                 ;;
             -*)
-                # Flag, skip it and possibly its argument
-                if [[ $((i + 1)) -lt ${#args[@]} ]] && [[ "${args[$((i+1))]}" != -* ]]; then
-                    ((i++))
-                fi
+                # Flag only — do not consume the next word. Boolean flags such
+                # as --auto-approve or -g would otherwise swallow the subcommand
+                # (`terraform --auto-approve apply`, `npm -g install`).
+                # Value-taking flags use --flag=value, or leave a non-command
+                # token that matching still classifies via first/last word.
                 ;;
             *)
                 # Non-flag word — collect all words for subcommand matching
@@ -296,8 +297,6 @@ is_mutating() {
     local subcmd
     subcmd=$(get_subcommand "$@")
 
-    [[ -z "$subcmd" ]] && return 1
-
     # First check if it's explicitly read-only
     if is_readonly "$cli" "$@"; then
         return 1
@@ -305,7 +304,7 @@ is_mutating() {
 
     # If we have explicit mutating patterns, check those
     local patterns
-    if patterns=$(get_mutating_patterns "$cli") 2>/dev/null; then
+    if [[ -n "$subcmd" ]] && patterns=$(get_mutating_patterns "$cli") 2>/dev/null; then
         if matches_pattern "$subcmd" "$patterns"; then
             return 0
         fi
@@ -313,6 +312,7 @@ is_mutating() {
 
     # Default: if the CLI is guarded but subcmd isn't in readonly list, block it
     # This is the "default deny" posture — anything not explicitly allowed is blocked
+    # Empty/unknown subcommands fail closed so flag-before-subcommand cannot bypass
     if get_readonly_patterns "$cli" >/dev/null 2>&1; then
         # This CLI has patterns defined but subcmd isn't readonly → treat as mutating
         return 0

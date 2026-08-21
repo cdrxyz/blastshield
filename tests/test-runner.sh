@@ -521,6 +521,27 @@ else
     pass "blastshield-guard check dnf install: correctly blocked"
 fi
 
+# Test: guard check — terraform --auto-approve apply blocked (boolean flag before subcommand)
+if "$GUARD" check terraform --auto-approve apply 2>&1; then
+    fail "blastshield-guard check terraform --auto-approve apply: should be blocked"
+else
+    pass "blastshield-guard check terraform --auto-approve apply: correctly blocked"
+fi
+
+# Test: guard check — terraform apply --auto-approve still blocked (flag after subcommand)
+if "$GUARD" check terraform apply --auto-approve 2>&1; then
+    fail "blastshield-guard check terraform apply --auto-approve: should be blocked"
+else
+    pass "blastshield-guard check terraform apply --auto-approve: correctly blocked"
+fi
+
+# Test: guard check — npm -g install blocked (boolean flag before subcommand)
+if "$GUARD" check npm -g install 2>&1; then
+    fail "blastshield-guard check npm -g install: should be blocked"
+else
+    pass "blastshield-guard check npm -g install: correctly blocked"
+fi
+
 # Test: guard check — npm with flags (npm install -g react) blocked
 if "$GUARD" check npm install -g react 2>&1; then
     fail "blastshield-guard check npm install -g react: should be blocked"

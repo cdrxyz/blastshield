@@ -32,7 +32,7 @@ Exit 1; run it yourself outside the agent sandbox
 1. **Runtime wrappers** — `blastshield` creates temporary wrappers for guarded CLIs found on your current PATH
 2. **PATH interception** — The temporary guard directory is prepended to PATH before the sandboxed command starts
 3. **Read-only check** — Each wrapper checks if the subcommand is in the read-only allowlist
-4. **Default deny** — If the subcommand isn't read-only, it is treated as mutating
+4. **Default deny** — If the subcommand isn't read-only, it is treated as mutating. Boolean flags before the subcommand (`terraform --auto-approve apply`, `npm -g install`) do not change this.
 5. **Runtime block** — Inside `blastshield`, mutating commands exit with a clear block message
 6. **Pass-through** — Read-only commands execute immediately without any interruption
 
@@ -288,6 +288,11 @@ blastshield-guard check terraform apply
 blastshield-guard check terraform plan
 # Output: ALLOWED (read-only): terraform plan
 # Exit: 0
+
+# Boolean flags before the subcommand are still classified correctly
+blastshield-guard check terraform --auto-approve apply
+# Output: BLOCKED (mutating — requires auth): terraform --auto-approve apply
+# Exit: 1
 ```
 
 ## Runtime vs Persistent Behavior
