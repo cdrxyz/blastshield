@@ -161,7 +161,7 @@ For AI agents, add this to their environment configuration.
 | `list`, `ls`, `info`, `why` | `add`, `install`, `remove` |
 | `outdated`, `search`, `version` | `upgrade *`, `up`, `dedupe *` |
 | `help`, `pack`, `dir` | `cache *`, `set *`, `config set` |
-| `config`, `plugin list` | `login`, `logout`, `publish` |
+| `config list`, `config get`, `plugin list` | `login`, `logout`, `publish` |
 | `npm info/tag/view` | `unlink`, `link`, `init` |
 
 ### pnpm
@@ -171,7 +171,7 @@ For AI agents, add this to their environment configuration.
 | `list`, `ls`, `info`, `why` | `add`, `install`, `i` |
 | `outdated`, `search`, `version` | `remove`, `rm`, `update`, `upgrade` |
 | `help`, `pack`, `audit` | `import`, `store prune/add` |
-| `fund`, `root`, `config`, `get` | `login`, `logout`, `publish` |
+| `fund`, `root`, `config list`, `config get`, `get` | `login`, `logout`, `publish` |
 | `store path` | `set`, `config set`, `rebuild` |
 | | `deploy`, `fetch` |
 

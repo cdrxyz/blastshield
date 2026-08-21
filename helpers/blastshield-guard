@@ -44,11 +44,11 @@ kubectl:get,describe,logs,top,events,api-resources,api-versions,explain,auth_can
 gh:list,view,repo_clone*,repo_fork*,repo_view*,pr_list*,pr_view*,pr_diff*,pr_checkout*,pr_checks*,pr_status*,issue_list*,issue_view*,release_list*,release_view*,release_download*,workflow_list*,workflow_view*,run_list*,run_view*,run_watch*,auth_status*,api*,help,version \
 helm:list,status,history,show,search,version,repo_list,repo_update \
 npm:list,ls,view,info,outdated,search,version,help,pack,why,explain,doctor,audit,dedupe,diff,fund,root,prefix,config_list,config_get,repo_docs \
-yarn:list,ls,info,why,outdated,search,version,help,pack,dedupe,dir,config,plugin_list,npm_info,npm_tag,npm_view \
-pnpm:list,ls,info,why,outdated,search,version,help,pack,audit,fund,root,config,get,store_path \
+yarn:list,ls,info,why,outdated,search,version,help,pack,dedupe,dir,config_list,config_get*,plugin_list,npm_info,npm_tag,npm_view \
+pnpm:list,ls,info,why,outdated,search,version,help,pack,audit,fund,root,config_list,config_get*,get,store_path \
 pip:list,show,search,check,freeze,config_list,config_get,debug,hash,inspect,version,help \
-brew:list,ls,info,search,desc,outdated,doctor,config,leaves,uses,deps,deps_*,options,cat,home,log,tap* \
-gem:list,search,query,spec,dependency,outdated,info,help,environment,install_*,exec \
+brew:list,ls,info,search,desc,outdated,doctor,config,leaves,uses,deps,deps_*,options,cat,home,log \
+gem:list,search,query,spec,dependency,outdated,info,help,environment,exec \
 cargo:search,tree,list,locate-project,metadata,version,help \
 hermit:list,search,help,version,info,env \
 apt:list,search,show,cache,policy,version,help,simulation \
@@ -69,7 +69,7 @@ npm:install,i,ci,add,uninstall,remove,rm,r,update,pack_*,publish,deprecate,acces
 yarn:add,install,remove,upgrade-*,up,dedupe_*,cache_*,set_*,config_set,login,logout,publish,unlink,link,init \
 pnpm:add,install,i,remove,rm,update,upgrade,import,store_prune,store_add,login,logout,publish,set,config_set,rebuild,deploy,fetch \
 pip:install,uninstall,download,build,wheel,compile,config_set,config_edit \
-brew:install,reinstall,uninstall,remove,rm,tap_*,untap,link,unlink,switch,pin,unpin,cleanup,migrate,extract,update,upgrade \
+brew:install,reinstall,uninstall,remove,rm,tap*,untap,link,unlink,switch,pin,unpin,cleanup,migrate,extract,update,upgrade \
 gem:install,uninstall,update,update_*,build,push,owner_*,yank,cleanup,environment_*,signin,signout \
 cargo:install,uninstall,add,rm,remove,update,upgrade,login,logout,publish,publish_*,owner,yank \
 hermit:install,uninstall,upgrade \
@@ -523,13 +523,13 @@ GUARDED CLIS:
                 list, status, history, show → allowed
     npm:        install, ci, add, uninstall → blocked
                 list, ls, view, info, outdated → allowed
-    yarn:       add, install, remove, upgrade → blocked
-                list, info, why, outdated → allowed
-    pnpm:       add, install, remove, update → blocked
-                list, info, why, outdated → allowed
+    yarn:       add, install, remove, upgrade, config set → blocked
+                list, info, why, outdated, config get/list → allowed
+    pnpm:       add, install, remove, update, config set → blocked
+                list, info, why, outdated, config get/list → allowed
     pip:        install, uninstall, build → blocked
                 list, show, search, freeze → allowed
-    brew:       install, reinstall, uninstall, update, upgrade → blocked
+    brew:       install, reinstall, uninstall, update, upgrade, tap → blocked
                 list, info, search, outdated → allowed
     gem:        install, uninstall, update, build → blocked
                 list, search, query, spec → allowed

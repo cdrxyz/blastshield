@@ -10,6 +10,7 @@ description: Recent BlastShield releases and the fixes included in each version.
 - Blocks all `aws s3 cp` invocations (uploads and downloads) because the previous `s3_cp*` pattern could not distinguish them.
 - Adds `blastshield-guard check` unit tests for each flipped command.
 - Updates the guard and architecture tables so they no longer describe those commands as read-only.
+- Closes leftover same-class allowlist holes: `gem install <name>` no longer matches readonly `install_*`; `brew tap*` and first-word `yarn`/`pnpm config` no longer treat `brew tap <name>` or `config set` as read-only.
 
 ## v0.1.20 — 2026-07-14
 

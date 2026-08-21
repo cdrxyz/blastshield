@@ -465,6 +465,20 @@ else
     fail "blastshield-guard check yarn list: should be allowed"
 fi
 
+# Test: guard check — yarn config set blocked (first-word 'config' must not allow mutations)
+if "$GUARD" check yarn config set foo bar 2>&1; then
+    fail "blastshield-guard check yarn config set: should be blocked"
+else
+    pass "blastshield-guard check yarn config set: correctly blocked"
+fi
+
+# Test: guard check — yarn config get still allowed (read-only)
+if "$GUARD" check yarn config get foo 2>&1; then
+    pass "blastshield-guard check yarn config get: correctly allowed (read-only)"
+else
+    fail "blastshield-guard check yarn config get: should be allowed"
+fi
+
 # Test: guard check — pnpm add blocked
 if "$GUARD" check pnpm add 2>&1; then
     fail "blastshield-guard check pnpm add: should be blocked"
@@ -477,6 +491,21 @@ if "$GUARD" check pnpm list 2>&1; then
     pass "blastshield-guard check pnpm list: correctly allowed (read-only)"
 else
     fail "blastshield-guard check pnpm list: should be allowed"
+fi
+
+# Test: guard check — pnpm config set blocked (first-word 'config' must not allow mutations)
+if "$GUARD" check pnpm config set foo bar 2>&1; then
+    fail "blastshield-guard check pnpm config set: should be blocked"
+else
+    pass "blastshield-guard check pnpm config set: correctly blocked"
+fi
+
+# Test: guard check — pnpm config get/list still allowed (read-only)
+if "$GUARD" check pnpm config get foo 2>&1 &&
+    "$GUARD" check pnpm config list 2>&1; then
+    pass "blastshield-guard check pnpm config get/list: correctly allowed (read-only)"
+else
+    fail "blastshield-guard check pnpm config get/list: should be allowed"
 fi
 
 # Test: guard check — pip install blocked
@@ -528,11 +557,25 @@ else
     pass "blastshield-guard check brew upgrade: correctly blocked"
 fi
 
+# Test: guard check — brew tap <name> blocked (tap* must not allow adding taps)
+if "$GUARD" check brew tap homebrew/cask 2>&1; then
+    fail "blastshield-guard check brew tap name: should be blocked"
+else
+    pass "blastshield-guard check brew tap name: correctly blocked"
+fi
+
 # Test: guard check — gem install blocked
 if "$GUARD" check gem install 2>&1; then
     fail "blastshield-guard check gem install: should be blocked"
 else
     pass "blastshield-guard check gem install: correctly blocked"
+fi
+
+# Test: guard check — gem install <name> blocked (install_* must not allow named installs)
+if "$GUARD" check gem install foo 2>&1; then
+    fail "blastshield-guard check gem install foo: should be blocked"
+else
+    pass "blastshield-guard check gem install foo: correctly blocked"
 fi
 
 # Test: guard check — gem list allowed (read-only)
