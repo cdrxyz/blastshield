@@ -5,7 +5,7 @@ description: Recent BlastShield releases and the fixes included in each version.
 
 ## v0.1.21 — 2026-08-21
 
-- Adds Seatbelt integration probes that fail if advertised hard-boundary paths can be read or written under assembled profiles: SSH private keys and cloud credentials (`base+secrets` / `base+aws`), Terraform state/lock/plan files, install lockfiles, GitHub workflow files, and `.git/hooks`. Each deny requires a reached-sandbox nonzero exit with no content change; sibling allow-controls keep `id_rsa.pub` readable and `package.json` / `main.tf` / `README.md` writable under the install, terraform, and gh assemblies.
+- Adds Seatbelt integration probes that fail if advertised hard-boundary paths can be read or written under assembled profiles: SSH private keys and cloud credentials (`base+secrets` / `base+aws`), Terraform state/lock/plan files, install lockfiles, GitHub workflow files, and `.git/hooks`. Each deny requires a marker file written from inside the sandbox, a nonzero exit, and no content change; sibling allow-controls keep `id_rsa.pub` readable and `package.json` / `main.tf` / `README.md` writable under the install, terraform, and gh assemblies.
 
 ## v0.1.20 — 2026-07-14
 

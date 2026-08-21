@@ -62,24 +62,26 @@ assert_fs_denied() {
     local probe_out=""
     local probe_status=0
     local script=""
+    local started_path="$boundary_project/.blastshield-sandbox-started"
 
     mkdir -p "$(dirname "$path")"
     if [[ -n "$allow_path" ]]; then
         mkdir -p "$(dirname "$allow_path")"
     fi
+    rm -f "$started_path"
 
     if [[ "$op" == "read" ]]; then
         printf 'BLASTSHIELD_PROBE_SECRET\n' > "$path"
         if [[ -n "$allow_path" ]]; then
             printf 'BLASTSHIELD_PROBE_PUBLIC\n' > "$allow_path"
         fi
-        script='printf "BLASTSHIELD_SANDBOX_EXEC_OK\n"; if [ -n "${PROBE_ALLOW_PATH:-}" ]; then cat "$PROBE_ALLOW_PATH" || exit 41; fi; cat "$PROBE_DENY_PATH"'
+        script='printf STARTED > "$PROBE_STARTED_PATH"; if [ -n "${PROBE_ALLOW_PATH:-}" ]; then cat "$PROBE_ALLOW_PATH" || exit 41; fi; cat "$PROBE_DENY_PATH"'
     elif [[ "$op" == "write" ]]; then
         printf 'ORIGINAL\n' > "$path"
         if [[ -n "$allow_path" ]]; then
             printf 'PLACEHOLDER\n' > "$allow_path"
         fi
-        script='printf "BLASTSHIELD_SANDBOX_EXEC_OK\n"; if [ -n "${PROBE_ALLOW_PATH:-}" ]; then printf "ALLOWED_WRITE\n" > "$PROBE_ALLOW_PATH" || exit 41; fi; printf leaked > "$PROBE_DENY_PATH"'
+        script='printf STARTED > "$PROBE_STARTED_PATH"; if [ -n "${PROBE_ALLOW_PATH:-}" ]; then printf "ALLOWED_WRITE\n" > "$PROBE_ALLOW_PATH" || exit 41; fi; printf leaked > "$PROBE_DENY_PATH"'
     else
         fail "integration: $name" "Unknown probe op: $op"
         return 0
@@ -88,10 +90,13 @@ assert_fs_denied() {
     probe_out=$(
         PROBE_DENY_PATH="$path" \
         PROBE_ALLOW_PATH="$allow_path" \
+        PROBE_STARTED_PATH="$started_path" \
         sandbox_probe "$boundary_home" "$script" "$profile" 2>&1
     ) || probe_status=$?
 
-    if ! printf '%s\n' "$probe_out" | grep -q 'BLASTSHIELD_SANDBOX_EXEC_OK'; then
+    # Marker must be a file written inside the sandbox. blastshield logs the
+    # guest command before exec, so a stdout substring is not proof of entry.
+    if [[ "$(cat "$started_path" 2>/dev/null)" != "STARTED" ]]; then
         fail "integration: $name" "blastshield failed before sandbox exec (exit $probe_status)"
         return 0
     fi
