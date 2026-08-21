@@ -1,0 +1,7 @@
+<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Half-Cedar Tree Mark — Dark (white on transparent) -->
+  <line x1="16" y1="28" x2="16" y2="4" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M16 22 L9 22 L16 13" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M16 16 L11 16 L16 8" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M16 10 L13 10 L16 4" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>
