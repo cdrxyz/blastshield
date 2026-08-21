@@ -607,6 +607,48 @@ else
     fail "blastshield-guard check help/version-only flags: should be allowed"
 fi
 
+# Test: guard check — value-flag two-level reads stay allowed
+if "$GUARD" check aws --profile prod s3 ls 2>&1 &&
+    "$GUARD" check kubectl -n default get pods 2>&1; then
+    pass "blastshield-guard check aws/kubectl value-flag two-level reads: correctly allowed"
+else
+    fail "blastshield-guard check aws/kubectl value-flag two-level reads: should be allowed"
+fi
+
+# Test: guard check — leftover readonly-looking value cannot allow unlisted mutating verbs
+if "$GUARD" check kubectl --namespace get replace 2>&1; then
+    fail "blastshield-guard check kubectl --namespace get replace: should be blocked"
+else
+    pass "blastshield-guard check kubectl --namespace get replace: leftover + unlisted mutating correctly blocked"
+fi
+
+if "$GUARD" check terraform --var plan force-unlock 2>&1; then
+    fail "blastshield-guard check terraform --var plan force-unlock: should be blocked"
+else
+    pass "blastshield-guard check terraform --var plan force-unlock: leftover + unlisted mutating correctly blocked"
+fi
+
+# Test: guard check — boolean flag before a read-only subcommand stays allowed
+if "$GUARD" check terraform --auto-approve plan 2>&1; then
+    pass "blastshield-guard check terraform --auto-approve plan: correctly allowed"
+else
+    fail "blastshield-guard check terraform --auto-approve plan: should be allowed"
+fi
+
+# Test: guard check — help plus a mutating subcommand stays blocked
+if "$GUARD" check terraform --help apply 2>&1; then
+    fail "blastshield-guard check terraform --help apply: should be blocked"
+else
+    pass "blastshield-guard check terraform --help apply: help + mutating correctly blocked"
+fi
+
+# Test: guard check — flag value "delete" does not overblock a later read
+if "$GUARD" check kubectl --namespace delete get pods 2>&1; then
+    pass "blastshield-guard check kubectl --namespace delete get pods: correctly allowed"
+else
+    fail "blastshield-guard check kubectl --namespace delete get pods: should be allowed"
+fi
+
 # Test: guard check — npm with flags (npm install -g react) blocked
 if "$GUARD" check npm install -g react 2>&1; then
     fail "blastshield-guard check npm install -g react: should be blocked"

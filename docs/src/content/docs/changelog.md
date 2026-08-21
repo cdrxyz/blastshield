@@ -8,8 +8,9 @@ description: Recent BlastShield releases and the fixes included in each version.
 - Fixes `blastshield-guard` failing open when a boolean flag appears before a mutating subcommand, such as `terraform --auto-approve apply` or `npm -g install`.
 - Treats an empty or unknown subcommand on a guarded CLI as mutating (fail closed) instead of unguarded.
 - Closes a follow-on fail-open where a space-separated flag value that equals a read-only pattern word (`terraform --var plan apply`, `kubectl --namespace get delete`, `aws --profile s3_ls s3 rb`) could make a later mutating verb pass via first/last-word matching. Mutating tokens in the collected word list now win.
+- Consumes known value flags (`--profile`, `--namespace`/`-n`, `--var`, `--project`) so two-level reads such as `aws --profile prod s3 ls` and `kubectl -n default get pods` stay allowed, while leftover values cannot classify an unlisted mutating verb (`kubectl --namespace get replace`, `terraform --var plan force-unlock`) as read-only.
 - Allows well-known help/version-only flags (`terraform --version`, `npm -v`, `kubectl --help`). Other empty or flags-only guarded commands stay blocked.
-- Adds regression coverage for flag-before-subcommand, empty/flags-only, and value-flag plus mutating-verb collisions, while keeping read-only commands such as `terraform plan` allowed.
+- Adds regression coverage for flag-before-subcommand, empty/flags-only, value-flag two-level reads, and leftover plus unlisted mutating verbs, while keeping read-only commands such as `terraform plan` allowed.
 
 ## v0.1.20 — 2026-07-14
 

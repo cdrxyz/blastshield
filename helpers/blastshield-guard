@@ -112,6 +112,24 @@ get_mutating_patterns() {
     return 1
 }
 
+# Global flags that take a following token. Boolean flags are intentionally
+# omitted so `--auto-approve apply` and `-g install` keep the subcommand.
+is_known_value_flag() {
+    case "$1" in
+        --profile|--region|--output|--query|--endpoint-url|\
+        --project|--account|--configuration|--filter|--format|--verbosity|\
+        --namespace|--context|--cluster|--user|--kubeconfig|--kube-context|\
+        --as|--token|--server|--request-timeout|--field-selector|--selector|\
+        --var|--var-file|--backend-config|--target|--chdir|-chdir|-var|-var-file|\
+        --repo|--hostname|--jq|--template|--json|--method|\
+        --prefix|--registry|--workspace|--userconfig|--globalconfig|\
+        -n|-R|-o|-l|-s)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
 # Extract the subcommand from args (skip flags, handle multi-word subcommands)
 # For two-level CLIs (aws, az, gcloud), returns "service operation" combined
 get_subcommand() {
@@ -120,8 +138,8 @@ get_subcommand() {
     local words=()
     while [[ $i -lt ${#args[@]} ]]; do
         case "${args[$i]}" in
-            --*=*)
-                # --flag=value style, skip
+            --*=*|-*=*)
+                # --flag=value / -flag=value style, skip
                 ;;
             --)
                 # End of flags
@@ -132,11 +150,15 @@ get_subcommand() {
                 break
                 ;;
             -*)
-                # Flag only — do not consume the next word. Boolean flags such
-                # as --auto-approve or -g would otherwise swallow the subcommand
-                # (`terraform --auto-approve apply`, `npm -g install`).
-                # Space-separated values stay in the word list; mutating tokens
-                # win so a readonly-looking value cannot hide a later verb.
+                # Known value flags consume the next non-flag token so
+                # `aws --profile prod s3 ls` keeps "s3 ls". Boolean and
+                # unknown flags do not consume, so they cannot swallow a
+                # following subcommand (`terraform --auto-approve apply`).
+                if is_known_value_flag "${args[$i]}" &&
+                    [[ $((i + 1)) -lt ${#args[@]} ]] &&
+                    [[ "${args[$((i + 1))]}" != -* ]]; then
+                    ((i++))
+                fi
                 ;;
             *)
                 # Non-flag word — collect all words for subcommand matching
@@ -270,6 +292,28 @@ any_token_matches_pattern() {
     return 1
 }
 
+# Match the full word list or any suffix. Leftover unknown flag values in
+# prefix position (`prod s3 ls`) must not hide a later two-level read.
+any_suffix_matches_pattern() {
+    local subcmd="$1"
+    local patterns="$2"
+    [[ -z "$subcmd" ]] && return 1
+
+    local -a words=()
+    local i j suffix
+    read -r -a words <<< "$subcmd"
+
+    for ((i = 0; i < ${#words[@]}; i++)); do
+        suffix="${words[$i]}"
+        for ((j = i + 1; j < ${#words[@]}; j++)); do
+            suffix="$suffix ${words[$j]}"
+        done
+        matches_pattern "$suffix" "$patterns" && return 0
+    done
+
+    return 1
+}
+
 # Allow terraform --version / npm -v / kubectl --help when that is the
 # whole command. Does not reopen flag-before-subcommand bypasses: a
 # following non-flag word is classified normally.
@@ -370,7 +414,7 @@ is_readonly() {
     local patterns
     patterns=$(get_readonly_patterns "$cli") || return 1
 
-    matches_pattern "$subcmd" "$patterns"
+    any_suffix_matches_pattern "$subcmd" "$patterns"
 }
 
 # Check if a command is mutating (requires auth)
