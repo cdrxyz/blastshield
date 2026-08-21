@@ -2,6 +2,28 @@
 
 Operational notes for maintainers.
 
+## Cutting a Release
+
+Releases are intentional. Everyday pushes to `master` do not publish a
+tarball, GitHub release, or Homebrew tap update.
+
+Use one of:
+
+- **Tag:** create and push a `vMAJOR.MINOR.PATCH` tag. The workflow packages
+  that version (updating the in-tree `readonly VERSION` for the tarball if
+  needed). Commit the matching `VERSION` on `master` before tagging if you
+  want the branch and the release to stay in sync.
+- **Actions UI:** run the Release workflow (`workflow_dispatch`) from
+  `master`. That path increments the patch version, commits it, tags, and
+  publishes.
+
+Both paths run CI first in the same workflow, then keep the existing
+packaging, checksum, GitHub release, and Homebrew tap dispatch steps.
+
+Existing v0.1.11–v0.1.20 GitHub releases were published as prereleases.
+Intentional releases from this workflow are latest releases so
+`/releases/latest` resolves. Older prereleases are left as-is.
+
 ## Homebrew Tap Token
 
 BlastShield releases update the Homebrew formula by dispatching the

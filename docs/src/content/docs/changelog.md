@@ -3,6 +3,12 @@ title: Changelog
 description: Recent BlastShield releases and the fixes included in each version.
 ---
 
+## v0.1.21 — 2026-08-21
+
+- Publishes GitHub releases only from an intentional `v*.*.*` tag or a manual Release workflow dispatch, not on every push to `master`.
+- Marks those intentional releases as latest instead of prerelease so GitHub `/releases/latest` resolves.
+- Requires the CI workflow to pass in the same run before packaging, checksums, and Homebrew tap dispatch.
+
 ## v0.1.20 — 2026-07-14
 
 - Allows Launch Services URL opens (`lsopen`) in the base profile so CLI agents can open the system browser for OAuth (Grok Build, Claude, Codex, MCP). Without this, interactive setup could hang with prompts stuck in "queued" after `_LSOpenURLsWithCompletionHandler` error -54.

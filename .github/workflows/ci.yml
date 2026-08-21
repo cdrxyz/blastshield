@@ -5,6 +5,8 @@ on:
     branches: [master]
   pull_request:
     branches: [master]
+  # Release calls this workflow so packaging waits on the same-run CI jobs.
+  workflow_call:
 
 jobs:
   test:
