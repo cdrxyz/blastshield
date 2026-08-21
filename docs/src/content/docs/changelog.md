@@ -8,8 +8,8 @@ description: Recent BlastShield releases and the fixes included in each version.
 - Stops the `gh` profile from denying all writes under `.git`, which broke `git add` / `git commit` in any repo that auto-detects `gh` via `.github/`.
 - Keeps GitHub-specific write denies for workflows, CODEOWNERS, dependabot, environments, and `hosts.yml` / token files.
 - Leaves `.git/hooks` and `.git/config` write protection to the base profile.
-- Adds regression coverage that ordinary commits succeed under base+gh while hook writes stay denied.
-- Matches `gh` deny-path static checks against literal SBPL rules so `*` is not treated as a regex quantifier.
+- Adds regression coverage that ordinary commits succeed under auto-detected `gh` while hook, git-config, workflow, and CODEOWNERS writes stay denied.
+- Static `gh` deny-path checks cover workflows, CODEOWNERS (including `docs/CODEOWNERS`), dependabot, environments, and `hosts.yml` using literal SBPL matches.
 
 ## v0.1.20 — 2026-07-14
 

@@ -197,11 +197,15 @@ fi
 # Test: gh profile still denies GitHub-specific paths
 if grep -Fq '(deny file-write* (subpath "_PROJECT_DIR/.github/workflows"))' "$PROFILES_DIR/gh.sb" &&
     grep -Fq '(deny file-write* (literal "_PROJECT_DIR/.github/CODEOWNERS"))' "$PROFILES_DIR/gh.sb" &&
+    grep -Fq '(deny file-write* (literal "_PROJECT_DIR/docs/CODEOWNERS"))' "$PROFILES_DIR/gh.sb" &&
+    grep -Fq '(deny file-write* (literal "_PROJECT_DIR/.github/dependabot.yml"))' "$PROFILES_DIR/gh.sb" &&
+    grep -Fq '(deny file-write* (literal "_PROJECT_DIR/.github/dependabot.yaml"))' "$PROFILES_DIR/gh.sb" &&
+    grep -Fq '(deny file-write* (subpath "_PROJECT_DIR/.github/environments"))' "$PROFILES_DIR/gh.sb" &&
     grep -Fq '(deny file-read* (literal "_HOME/.config/gh/hosts.yml"))' "$PROFILES_DIR/gh.sb" &&
     grep -Fq '(deny file-write* (subpath "_HOME/.config/gh"))' "$PROFILES_DIR/gh.sb"; then
-    pass "profile 'gh': still denies workflows, CODEOWNERS, and hosts.yml"
+    pass "profile 'gh': still denies workflows, CODEOWNERS, dependabot, environments, and hosts.yml"
 else
-    fail "profile 'gh': missing GitHub-specific path denies" "Keep workflow / CODEOWNERS / hosts.yml denies"
+    fail "profile 'gh': missing GitHub-specific path denies" "Keep workflow / CODEOWNERS / dependabot / environments / hosts.yml denies"
 fi
 
 # ─── Guard Tests ──────────────────────────────────────────────────────────
@@ -909,11 +913,12 @@ HERMIT_TERRAFORM
     fi
     rm -rf "$gradle_home"
 
-    # Test: base+gh allows ordinary git commits but still denies hook writes
+    # Test: auto-detected gh allows ordinary git commits but still denies
+    # hook/config and GitHub-specific writes. .github/ is the auto-detect trigger.
     if command -v git &>/dev/null; then
         gh_git_tmp=$(mktemp -d "${TMPDIR:-/tmp}/blastshield-gh-git.XXXXXX")
         gh_git_tmp=$(cd "$gh_git_tmp" && pwd -P)
-        mkdir -p "$gh_git_tmp/.github"
+        mkdir -p "$gh_git_tmp/.github/workflows"
         git -C "$gh_git_tmp" init >/dev/null
         git -C "$gh_git_tmp" config user.email "blastshield-test@example.com"
         git -C "$gh_git_tmp" config user.name "BlastShield Test"
@@ -927,22 +932,30 @@ HERMIT_TERRAFORM
         )
         if gh_commit_out=$( {
                 cd "$gh_git_tmp" &&
-                env "${gh_git_env[@]}" "$BLASTSHIELD" --no-detect --no-guard -p gh git add README &&
-                env "${gh_git_env[@]}" "$BLASTSHIELD" --no-detect --no-guard -p gh \
+                env "${gh_git_env[@]}" "$BLASTSHIELD" --no-guard git add README &&
+                env "${gh_git_env[@]}" "$BLASTSHIELD" --no-guard \
                     git -c commit.gpgsign=false commit -m "test commit"
             } 2>&1) &&
             git -C "$gh_git_tmp" rev-parse --verify HEAD >/dev/null 2>&1; then
-            pass "integration: gh profile allows git add and git commit"
+            pass "integration: auto-detected gh profile allows git add and git commit"
         else
-            fail "integration: gh profile should allow git add and git commit" "$gh_commit_out"
+            fail "integration: auto-detected gh profile should allow git add and git commit" "$gh_commit_out"
         fi
 
-        if (cd "$gh_git_tmp" && "$BLASTSHIELD" --no-detect --no-guard -p gh \
-                /bin/sh -c 'printf bad > .git/hooks/pre-commit') >/dev/null 2>&1; then
-            fail "integration: gh profile should still deny .git/hooks writes" "Expected hook write to be denied"
-        else
-            pass "integration: gh profile still denies .git/hooks writes"
-        fi
+        assert_gh_write_denied() {
+            local path="$1"
+            local label="$2"
+            if (cd "$gh_git_tmp" && "$BLASTSHIELD" --no-guard \
+                    /bin/sh -c "printf bad > '$path'") >/dev/null 2>&1; then
+                fail "integration: auto-detected gh should still deny $label writes" "Expected $path write to be denied"
+            else
+                pass "integration: auto-detected gh still denies $label writes"
+            fi
+        }
+        assert_gh_write_denied ".git/hooks/pre-commit" ".git/hooks"
+        assert_gh_write_denied ".git/config" ".git/config"
+        assert_gh_write_denied ".github/workflows/pwn.yml" ".github/workflows"
+        assert_gh_write_denied ".github/CODEOWNERS" "CODEOWNERS"
         rm -rf "$gh_git_tmp"
     else
         skip "integration: gh git commit (git not available)"
