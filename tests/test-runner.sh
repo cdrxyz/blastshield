@@ -50,35 +50,79 @@ sandbox_probe() {
     fi
 }
 
-# Fail if a read or write of an advertised deny path succeeds.
-# Usage: assert_fs_denied <name> <extra_profile> <read|write> <abs_path>
+# Fail unless an advertised deny path is blocked inside a reached sandbox.
+# Optional sibling allow-control must succeed in the same invocation.
+# Usage: assert_fs_denied <name> <extra_profile> <read|write> <deny_path> [allow_path]
 assert_fs_denied() {
     local name="$1"
     local profile="$2"
     local op="$3"
     local path="$4"
+    local allow_path="${5:-}"
     local probe_out=""
+    local probe_status=0
+    local script=""
 
     mkdir -p "$(dirname "$path")"
+    if [[ -n "$allow_path" ]]; then
+        mkdir -p "$(dirname "$allow_path")"
+    fi
 
     if [[ "$op" == "read" ]]; then
         printf 'BLASTSHIELD_PROBE_SECRET\n' > "$path"
-        probe_out=$(PROBE_PATH="$path" sandbox_probe "$boundary_home" 'cat "$PROBE_PATH"' "$profile" 2>&1) || true
-        if printf '%s\n' "$probe_out" | grep -q 'BLASTSHIELD_PROBE_SECRET'; then
-            fail "integration: $name" "Expected read deny; sandbox returned file contents"
-        else
-            pass "integration: $name"
+        if [[ -n "$allow_path" ]]; then
+            printf 'BLASTSHIELD_PROBE_PUBLIC\n' > "$allow_path"
         fi
+        script='printf "BLASTSHIELD_SANDBOX_EXEC_OK\n"; if [ -n "${PROBE_ALLOW_PATH:-}" ]; then cat "$PROBE_ALLOW_PATH" || exit 41; fi; cat "$PROBE_DENY_PATH"'
     elif [[ "$op" == "write" ]]; then
         printf 'ORIGINAL\n' > "$path"
-        probe_out=$(PROBE_PATH="$path" sandbox_probe "$boundary_home" 'printf leaked > "$PROBE_PATH"' "$profile" 2>&1) || true
-        if [[ "$(cat "$path" 2>/dev/null)" != "ORIGINAL" ]]; then
-            fail "integration: $name" "Expected write deny; file was modified"
+        if [[ -n "$allow_path" ]]; then
+            printf 'PLACEHOLDER\n' > "$allow_path"
+        fi
+        script='printf "BLASTSHIELD_SANDBOX_EXEC_OK\n"; if [ -n "${PROBE_ALLOW_PATH:-}" ]; then printf "ALLOWED_WRITE\n" > "$PROBE_ALLOW_PATH" || exit 41; fi; printf leaked > "$PROBE_DENY_PATH"'
+    else
+        fail "integration: $name" "Unknown probe op: $op"
+        return 0
+    fi
+
+    probe_out=$(
+        PROBE_DENY_PATH="$path" \
+        PROBE_ALLOW_PATH="$allow_path" \
+        sandbox_probe "$boundary_home" "$script" "$profile" 2>&1
+    ) || probe_status=$?
+
+    if ! printf '%s\n' "$probe_out" | grep -q 'BLASTSHIELD_SANDBOX_EXEC_OK'; then
+        fail "integration: $name" "blastshield failed before sandbox exec (exit $probe_status)"
+        return 0
+    fi
+
+    if [[ -n "$allow_path" ]]; then
+        if [[ "$op" == "read" ]]; then
+            if ! printf '%s\n' "$probe_out" | grep -q 'BLASTSHIELD_PROBE_PUBLIC'; then
+                fail "integration: $name" "allow-control read of $allow_path failed"
+                return 0
+            fi
+        elif [[ "$(cat "$allow_path" 2>/dev/null)" != "ALLOWED_WRITE" ]]; then
+            fail "integration: $name" "allow-control write of $allow_path failed"
+            return 0
+        fi
+    fi
+
+    if [[ "$probe_status" -eq 0 ]]; then
+        fail "integration: $name" "Expected sandbox deny (nonzero exit); command succeeded"
+        return 0
+    fi
+
+    if [[ "$op" == "read" ]]; then
+        if printf '%s\n' "$probe_out" | grep -q 'BLASTSHIELD_PROBE_SECRET'; then
+            fail "integration: $name" "Expected read deny; sandbox returned file contents (exit $probe_status)"
         else
             pass "integration: $name"
         fi
+    elif [[ "$(cat "$path" 2>/dev/null)" != "ORIGINAL" ]]; then
+        fail "integration: $name" "Expected write deny; file was modified (exit $probe_status)"
     else
-        fail "integration: $name" "Unknown probe op: $op"
+        pass "integration: $name"
     fi
 }
 
@@ -945,33 +989,38 @@ HERMIT_TERRAFORM
     boundary_old_pwd=$PWD
     cd "$boundary_project"
 
-    while IFS='|' read -r name profile op root relpath; do
+    while IFS='|' read -r name profile op root relpath allow_relpath; do
         [[ -z "${name:-}" || "$name" == \#* ]] && continue
+        local_deny=""
+        local_allow=""
         if [[ "$root" == "home" ]]; then
-            assert_fs_denied "$name" "$profile" "$op" "$boundary_home/$relpath"
+            local_deny="$boundary_home/$relpath"
+            [[ -n "${allow_relpath:-}" ]] && local_allow="$boundary_home/$allow_relpath"
         elif [[ "$root" == "project" ]]; then
-            assert_fs_denied "$name" "$profile" "$op" "$boundary_project/$relpath"
+            local_deny="$boundary_project/$relpath"
+            [[ -n "${allow_relpath:-}" ]] && local_allow="$boundary_project/$allow_relpath"
         else
             fail "integration: $name" "Unknown probe root: $root"
+            continue
         fi
+        assert_fs_denied "$name" "$profile" "$op" "$local_deny" "$local_allow"
     done <<'PROBES'
-deny SSH id_rsa read (base+secrets)||read|home|.ssh/id_rsa
-deny SSH id_ed25519 read (base+secrets)||read|home|.ssh/id_ed25519
+deny SSH id_rsa read (base+secrets)||read|home|.ssh/id_rsa|.ssh/id_rsa.pub
+deny SSH id_ed25519 read (base+secrets)||read|home|.ssh/id_ed25519|.ssh/id_ed25519.pub
 deny AWS credentials read (base+secrets)||read|home|.aws/credentials
-deny gcloud credentials read (base+secrets)||read|home|.config/gcloud/credentials/adc.json
 deny Azure credentials read (base+secrets)||read|home|.azure/msal_token_cache.json
 deny AWS credentials read (base+aws)|aws|read|home|.aws/credentials
-deny terraform.tfstate write (base+terraform)|terraform|write|project|terraform.tfstate
-deny .terraform.lock.hcl write (base+terraform)|terraform|write|project|.terraform.lock.hcl
-deny tfplan write (base+terraform)|terraform|write|project|plan.tfplan
-deny package-lock.json write (base+install)|install|write|project|package-lock.json
-deny yarn.lock write (base+install)|install|write|project|yarn.lock
-deny pnpm-lock.yaml write (base+install)|install|write|project|pnpm-lock.yaml
-deny Gemfile.lock write (base+install)|install|write|project|Gemfile.lock
-deny Cargo.lock write (base+install)|install|write|project|Cargo.lock
-deny poetry.lock write (base+install)|install|write|project|poetry.lock
-deny uv.lock write (base+install)|install|write|project|uv.lock
-deny GitHub workflow write (base+gh)|gh|write|project|.github/workflows/probe.yml
+deny terraform.tfstate write (base+terraform)|terraform|write|project|terraform.tfstate|main.tf
+deny .terraform.lock.hcl write (base+terraform)|terraform|write|project|.terraform.lock.hcl|main.tf
+deny tfplan write (base+terraform)|terraform|write|project|plan.tfplan|main.tf
+deny package-lock.json write (base+install)|install|write|project|package-lock.json|package.json
+deny yarn.lock write (base+install)|install|write|project|yarn.lock|package.json
+deny pnpm-lock.yaml write (base+install)|install|write|project|pnpm-lock.yaml|package.json
+deny Gemfile.lock write (base+install)|install|write|project|Gemfile.lock|package.json
+deny Cargo.lock write (base+install)|install|write|project|Cargo.lock|package.json
+deny poetry.lock write (base+install)|install|write|project|poetry.lock|package.json
+deny uv.lock write (base+install)|install|write|project|uv.lock|package.json
+deny GitHub workflow write (base+gh)|gh|write|project|.github/workflows/probe.yml|README.md
 deny .git/hooks write (base)||write|project|.git/hooks/pre-commit
 PROBES
 
