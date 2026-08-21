@@ -3,6 +3,13 @@ title: Changelog
 description: Recent BlastShield releases and the fixes included in each version.
 ---
 
+## v0.1.21 — 2026-08-21
+
+- Stops the `gh` profile from denying all writes under `.git`, which broke `git add` / `git commit` in any repo that auto-detects `gh` via `.github/`.
+- Keeps GitHub-specific write denies for workflows, CODEOWNERS, dependabot, environments, and `hosts.yml` / token files.
+- Leaves `.git/hooks` and `.git/config` write protection to the base profile.
+- Adds regression coverage that ordinary commits succeed under base+gh while hook writes stay denied.
+
 ## v0.1.20 — 2026-07-14
 
 - Allows Launch Services URL opens (`lsopen`) in the base profile so CLI agents can open the system browser for OAuth (Grok Build, Claude, Codex, MCP). Without this, interactive setup could hang with prompts stuck in "queued" after `_LSOpenURLsWithCompletionHandler` error -54.

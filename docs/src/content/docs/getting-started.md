@@ -279,6 +279,8 @@ blastshield --violations
 | Workflow file writes | `gh auth status` |
 | CODEOWNERS writes, `gh secret set` | |
 
+Ordinary `git add` / `git commit` writes under `.git` stay allowed. Hook and git-config writes remain denied by the base profile.
+
 ### Install (Package Manager) Profile
 
 Blocks AI agents from installing new dependencies without human review. Protects both the command-argument level (via guard) and the filesystem level (via sandbox profile).
