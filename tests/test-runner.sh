@@ -521,6 +521,158 @@ else
     pass "blastshield-guard check dnf install: correctly blocked"
 fi
 
+# Test: guard check — terraform --auto-approve apply blocked (boolean flag before subcommand)
+if "$GUARD" check terraform --auto-approve apply 2>&1; then
+    fail "blastshield-guard check terraform --auto-approve apply: should be blocked"
+else
+    pass "blastshield-guard check terraform --auto-approve apply: correctly blocked"
+fi
+
+# Test: guard check — terraform apply --auto-approve still blocked (flag after subcommand)
+if "$GUARD" check terraform apply --auto-approve 2>&1; then
+    fail "blastshield-guard check terraform apply --auto-approve: should be blocked"
+else
+    pass "blastshield-guard check terraform apply --auto-approve: correctly blocked"
+fi
+
+# Test: guard check — npm -g install blocked (boolean flag before subcommand)
+if "$GUARD" check npm -g install 2>&1; then
+    fail "blastshield-guard check npm -g install: should be blocked"
+else
+    pass "blastshield-guard check npm -g install: correctly blocked"
+fi
+
+# Test: guard check — empty args on a guarded CLI fail closed
+if "$GUARD" check terraform 2>&1; then
+    fail "blastshield-guard check terraform: empty args should be blocked"
+else
+    pass "blastshield-guard check terraform: empty args correctly blocked"
+fi
+
+# Test: guard check — flags-only on a guarded CLI fail closed
+if "$GUARD" check terraform --auto-approve 2>&1; then
+    fail "blastshield-guard check terraform --auto-approve: flags-only should be blocked"
+else
+    pass "blastshield-guard check terraform --auto-approve: flags-only correctly blocked"
+fi
+
+# Test: guard check — first-word readonly collision cannot hide apply
+if "$GUARD" check terraform --var plan apply 2>&1; then
+    fail "blastshield-guard check terraform --var plan apply: should be blocked"
+else
+    pass "blastshield-guard check terraform --var plan apply: first-word collision correctly blocked"
+fi
+
+# Test: guard check — last-word readonly collision cannot hide apply
+if "$GUARD" check terraform apply --var plan 2>&1; then
+    fail "blastshield-guard check terraform apply --var plan: should be blocked"
+else
+    pass "blastshield-guard check terraform apply --var plan: last-word collision correctly blocked"
+fi
+
+# Test: guard check — kubectl first-word collision (namespace value "get")
+if "$GUARD" check kubectl --namespace get delete 2>&1; then
+    fail "blastshield-guard check kubectl --namespace get delete: should be blocked"
+else
+    pass "blastshield-guard check kubectl --namespace get delete: first-word collision correctly blocked"
+fi
+
+# Test: guard check — kubectl last-word collision (namespace value "get")
+if "$GUARD" check kubectl delete --namespace get 2>&1; then
+    fail "blastshield-guard check kubectl delete --namespace get: should be blocked"
+else
+    pass "blastshield-guard check kubectl delete --namespace get: last-word collision correctly blocked"
+fi
+
+# Test: guard check — gcloud first-word collision (project value "list")
+if "$GUARD" check gcloud --project list delete 2>&1; then
+    fail "blastshield-guard check gcloud --project list delete: should be blocked"
+else
+    pass "blastshield-guard check gcloud --project list delete: first-word collision correctly blocked"
+fi
+
+# Test: guard check — aws first-word glob collision (profile value "s3_ls")
+if "$GUARD" check aws --profile s3_ls s3 rb 2>&1; then
+    fail "blastshield-guard check aws --profile s3_ls s3 rb: should be blocked"
+else
+    pass "blastshield-guard check aws --profile s3_ls s3 rb: first-word collision correctly blocked"
+fi
+
+# Test: guard check — help/version-only flags are allowed
+if "$GUARD" check terraform --version 2>&1 &&
+    "$GUARD" check npm -v 2>&1 &&
+    "$GUARD" check kubectl --help 2>&1; then
+    pass "blastshield-guard check help/version-only flags: correctly allowed"
+else
+    fail "blastshield-guard check help/version-only flags: should be allowed"
+fi
+
+# Test: guard check — value-flag two-level reads stay allowed
+if "$GUARD" check aws --profile prod s3 ls 2>&1 &&
+    "$GUARD" check kubectl -n default get pods 2>&1; then
+    pass "blastshield-guard check aws/kubectl value-flag two-level reads: correctly allowed"
+else
+    fail "blastshield-guard check aws/kubectl value-flag two-level reads: should be allowed"
+fi
+
+# Test: guard check — additional two-level reads with other value flags
+if "$GUARD" check aws --region us-east-1 s3 ls 2>&1 &&
+    "$GUARD" check kubectl --context prod get pods 2>&1 &&
+    "$GUARD" check gcloud --project myproj compute instances list 2>&1 &&
+    "$GUARD" check az --resource-group myrg account list 2>&1 &&
+    "$GUARD" check helm --namespace default list 2>&1; then
+    pass "blastshield-guard check additional value-flag two-level reads: correctly allowed"
+else
+    fail "blastshield-guard check additional value-flag two-level reads: should be allowed"
+fi
+
+# Test: guard check — unknown value flag leftover + unlisted write fail-closed
+if "$GUARD" check kubectl --not-a-real-flag get replace 2>&1; then
+    fail "blastshield-guard check kubectl --not-a-real-flag get replace: should be blocked"
+else
+    pass "blastshield-guard check kubectl --not-a-real-flag get replace: unknown leftover + unlisted write correctly blocked"
+fi
+
+if "$GUARD" check terraform --not-a-real-flag plan force-unlock 2>&1; then
+    fail "blastshield-guard check terraform --not-a-real-flag plan force-unlock: should be blocked"
+else
+    pass "blastshield-guard check terraform --not-a-real-flag plan force-unlock: unknown leftover + unlisted write correctly blocked"
+fi
+
+# Test: guard check — leftover readonly-looking value cannot allow unlisted mutating verbs
+if "$GUARD" check kubectl --namespace get replace 2>&1; then
+    fail "blastshield-guard check kubectl --namespace get replace: should be blocked"
+else
+    pass "blastshield-guard check kubectl --namespace get replace: leftover + unlisted mutating correctly blocked"
+fi
+
+if "$GUARD" check terraform --var plan force-unlock 2>&1; then
+    fail "blastshield-guard check terraform --var plan force-unlock: should be blocked"
+else
+    pass "blastshield-guard check terraform --var plan force-unlock: leftover + unlisted mutating correctly blocked"
+fi
+
+# Test: guard check — boolean flag before a read-only subcommand stays allowed
+if "$GUARD" check terraform --auto-approve plan 2>&1; then
+    pass "blastshield-guard check terraform --auto-approve plan: correctly allowed"
+else
+    fail "blastshield-guard check terraform --auto-approve plan: should be allowed"
+fi
+
+# Test: guard check — help plus a mutating subcommand stays blocked
+if "$GUARD" check terraform --help apply 2>&1; then
+    fail "blastshield-guard check terraform --help apply: should be blocked"
+else
+    pass "blastshield-guard check terraform --help apply: help + mutating correctly blocked"
+fi
+
+# Test: guard check — flag value "delete" does not overblock a later read
+if "$GUARD" check kubectl --namespace delete get pods 2>&1; then
+    pass "blastshield-guard check kubectl --namespace delete get pods: correctly allowed"
+else
+    fail "blastshield-guard check kubectl --namespace delete get pods: should be allowed"
+fi
+
 # Test: guard check — npm with flags (npm install -g react) blocked
 if "$GUARD" check npm install -g react 2>&1; then
     fail "blastshield-guard check npm install -g react: should be blocked"

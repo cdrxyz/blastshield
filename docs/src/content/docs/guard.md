@@ -32,7 +32,7 @@ Exit 1; run it yourself outside the agent sandbox
 1. **Runtime wrappers** — `blastshield` creates temporary wrappers for guarded CLIs found on your current PATH
 2. **PATH interception** — The temporary guard directory is prepended to PATH before the sandboxed command starts
 3. **Read-only check** — Each wrapper checks if the subcommand is in the read-only allowlist
-4. **Default deny** — If the subcommand isn't read-only, it is treated as mutating
+4. **Default deny** — If the subcommand isn't read-only, it is treated as mutating. Boolean flags before the subcommand (`terraform --auto-approve apply`, `npm -g install`) do not change this. Known value flags (`--profile`, `--namespace`, `--var`) are not treated as verbs, so `aws --profile prod s3 ls` stays allowed and `terraform --var plan force-unlock` stays blocked. First-word read-only matching does not accept an extra non-resource verb, so an unknown value flag cannot hide `kubectl replace` or `terraform force-unlock` behind a leftover `get`/`plan`.
 5. **Runtime block** — Inside `blastshield`, mutating commands exit with a clear block message
 6. **Pass-through** — Read-only commands execute immediately without any interruption
 
@@ -287,6 +287,21 @@ blastshield-guard check terraform apply
 # Check if terraform plan would be allowed
 blastshield-guard check terraform plan
 # Output: ALLOWED (read-only): terraform plan
+# Exit: 0
+
+# Boolean flags before the subcommand are still classified correctly
+blastshield-guard check terraform --auto-approve apply
+# Output: BLOCKED (mutating — requires auth): terraform --auto-approve apply
+# Exit: 1
+
+# A flag value that matches a read-only word cannot hide a mutating verb
+blastshield-guard check terraform --var plan apply
+# Output: BLOCKED (mutating — requires auth): terraform --var plan apply
+# Exit: 1
+
+# Two-level reads after a value flag stay allowed
+blastshield-guard check aws --profile prod s3 ls
+# Output: ALLOWED (read-only): aws --profile prod s3 ls
 # Exit: 0
 ```
 
