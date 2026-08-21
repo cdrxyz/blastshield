@@ -9,7 +9,7 @@ description: Recent BlastShield releases and the fixes included in each version.
 - Rejects an empty `-p` / `--profile` name at parse time.
 - Leaves missing auto-detected profiles as skip-and-warn so optional project detection still does not block a normal launch.
 - Documents the hard fail in `--help` and the profiles reference.
-- Adds wrapper tests for unknown and empty `-p` names, a valid explicit profile, and skip-and-warn for a missing auto-detected profile.
+- Adds wrapper tests for unknown and empty `-p` names, a valid explicit profile, and skip-and-warn for a missing auto-detected profile (assemble continues on macOS and Linux).
 
 ## v0.1.20 — 2026-07-14
 

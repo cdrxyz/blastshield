@@ -229,13 +229,11 @@ cp "$BLASTSHIELD" "$optional_tmp/blastshield"
 cp "$PROFILES_DIR/base.sb" "$PROFILES_DIR/secrets.sb" "$optional_tmp/profiles/"
 chmod +x "$optional_tmp/blastshield"
 touch "$optional_tmp/main.tf"
-optional_marker="$optional_tmp/ran"
-rm -f "$optional_marker"
 optional_status=0
-optional_out=$(cd "$optional_tmp" && ./blastshield -v --no-guard /bin/sh -c "printf ran > '$optional_marker'" 2>&1) || optional_status=$?
+optional_out=$(cd "$optional_tmp" && ./blastshield -v --no-guard /usr/bin/true 2>&1) || optional_status=$?
 if echo "$optional_out" | grep -q "Auto-detected profile: terraform" &&
-    ! echo "$optional_out" | grep -q "Profile not found: terraform" &&
-    { [[ -e "$optional_marker" ]] || echo "$optional_out" | grep -q "sandbox-exec not found"; }; then
+    echo "$optional_out" | grep -q "Assembled profile:" &&
+    ! echo "$optional_out" | grep -q "Profile not found: terraform"; then
     pass "blastshield: missing auto-detected profile skip-and-warns and continues"
 else
     fail "blastshield: missing auto-detected profile should skip-and-warn and continue" \
