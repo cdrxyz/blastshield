@@ -75,8 +75,8 @@
 <li>Stops the <code dir="auto">gh</code> profile from denying all writes under <code dir="auto">.git</code>, which broke <code dir="auto">git add</code> / <code dir="auto">git commit</code> in any repo that auto-detects <code dir="auto">gh</code> via <code dir="auto">.github/</code>.</li>
 <li>Keeps GitHub-specific write denies for workflows, CODEOWNERS, dependabot, environments, and <code dir="auto">hosts.yml</code> / token files.</li>
 <li>Leaves <code dir="auto">.git/hooks</code> and <code dir="auto">.git/config</code> write protection to the base profile.</li>
-<li>Adds regression coverage that ordinary commits succeed under base+gh while hook writes stay denied.</li>
-<li>Matches <code dir="auto">gh</code> deny-path static checks against literal SBPL rules so <code dir="auto">*</code> is not treated as a regex quantifier.</li>
+<li>Adds regression coverage that ordinary commits succeed under auto-detected <code dir="auto">gh</code> while hook, git-config, workflow, and CODEOWNERS writes stay denied.</li>
+<li>Static <code dir="auto">gh</code> deny-path checks cover workflows, CODEOWNERS (including <code dir="auto">docs/CODEOWNERS</code>), dependabot, environments, and <code dir="auto">hosts.yml</code> using literal SBPL matches.</li>
 </ul>
 <div class="sl-heading-wrapper level-h2"><h2 id="v0120--2026-07-14">v0.1.20 — 2026-07-14</h2><a class="sl-anchor-link" href="#v0120--2026-07-14"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “v0.1.20 — 2026-07-14”</span></a></div>
 <ul>
