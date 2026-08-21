@@ -91,18 +91,18 @@ This layer handles what `sandbox-exec` cannot see: **which subcommands the agent
 | CLI | Destructive Pattern |
 |-----|-------------------|
 | `terraform` | `destroy` |
-| `gcloud` | `delete` |
-| `aws` | `delete*` |
+| `gcloud` | `delete`, `config set`, `auth login` |
+| `aws` | `delete*`, `s3 cp` |
 | `az` | `delete` |
 | `kubectl` | `delete` |
 | `gh` | `delete` |
 | `npm` | `install`, `ci`, `add`, `remove` |
 | `pip` | `install` |
-| `brew` | `install`, `uninstall`, `upgrade` |
-| `yarn` | `add`, `remove`, `install` |
-| `pnpm` | `add`, `remove`, `install` |
+| `brew` | `install`, `uninstall`, `update`, `upgrade`, `tap` |
+| `yarn` | `add`, `remove`, `install`, `config set` |
+| `pnpm` | `add`, `remove`, `install`, `config set` |
 | `gem` | `install`, `uninstall`, `update` |
-| `cargo` | `add`, `install`, `rm` |
+| `cargo` | `add`, `install`, `rm`, `publish`, `owner` |
 | `hermit` | `install`, `uninstall` |
 | `apt` | `install`, `remove`, `purge` |
 | `dnf` | `install`, `remove`, `upgrade` |

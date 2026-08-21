@@ -3,6 +3,16 @@ title: Changelog
 description: Recent BlastShield releases and the fixes included in each version.
 ---
 
+## v0.1.21 — 2026-08-21
+
+- Tightens the `blastshield-guard` read-only allowlist so these mutations no longer pass as read-only: `brew update` / `brew upgrade`, `gem update`, `cargo publish` / `cargo owner`, `aws s3 cp`, and `gcloud config set` / `gcloud auth login`.
+- Stops first-word matching of gcloud `config` / `auth` from allowing `gcloud config set` and `gcloud auth login`; `gcloud config list/get` and `gcloud auth status` stay allowed.
+- Blocks all `aws s3 cp` invocations (uploads and downloads) because the previous `s3_cp*` pattern could not distinguish them.
+- Adds `blastshield-guard check` unit tests for each flipped command.
+- Updates the guard and architecture tables so they no longer describe those commands as read-only.
+- Closes leftover same-class allowlist holes: `gem install <name>` no longer matches readonly `install_*`; `brew tap*` and first-word `yarn`/`pnpm config` no longer treat `brew tap <name>` or `config set` as read-only.
+- Locks `blastshield-guard check` for `yarn`/`pnpm config list` (allowed), `yarn`/`pnpm config delete` (blocked), and `brew tap-new` (blocked).
+
 ## v0.1.20 — 2026-07-14
 
 - Allows Launch Services URL opens (`lsopen`) in the base profile so CLI agents can open the system browser for OAuth (Grok Build, Claude, Codex, MCP). Without this, interactive setup could hang with prompts stuck in "queued" after `_LSOpenURLsWithCompletionHandler` error -54.

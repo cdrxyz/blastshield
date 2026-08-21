@@ -236,7 +236,7 @@ blastshield --violations
 | Blocked | Allowed |
 |---------|---------|
 | `aws * delete/create/put/update` | `aws * describe-/list-/get-` |
-| `aws * deploy/terminate/run-` | `aws s3 ls, cp (download), presign` |
+| `aws * deploy/terminate/run-`, `aws s3 cp` | `aws s3 ls, presign` |
 | `aws * start-/stop-/reboot` | `aws sts get-caller-identity` |
 | `aws * authorize/revoke/send` | `aws logs describe-/get-/filter-` |
 | Credential reads | `aws dynamodb scan/query/get-item` |
