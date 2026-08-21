@@ -213,13 +213,25 @@ else
 fi
 rm -f "$empty_marker"
 
-# Test: a real explicit profile still works
-if version_with_profile=$("$BLASTSHIELD" -p terraform --version 2>&1) &&
-    [[ "$version_with_profile" =~ ^blastshield\ v[0-9] ]] &&
-    ! echo "$version_with_profile" | grep -q "Profile not found"; then
-    pass "blastshield: explicit -p terraform --version still succeeds"
+# Test: whitespace-only explicit -p/--profile name is fatal at parse time
+ws_status=0
+ws_out=$("$BLASTSHIELD" --no-detect --no-guard -p ' ' /usr/bin/true 2>&1) || ws_status=$?
+if [[ $ws_status -ne 0 ]] && echo "$ws_out" | grep -Fq -- '--profile requires a non-empty name'; then
+    pass "blastshield: whitespace-only explicit -p profile aborts"
 else
-    fail "blastshield: explicit -p terraform --version should succeed" "Got: $version_with_profile"
+    fail "blastshield: whitespace-only explicit -p profile should abort" \
+        "status=$ws_status output=$ws_out"
+fi
+
+# Test: a real explicit profile still works through assemble (not --version short-circuit)
+happy_status=0
+happy_out=$("$BLASTSHIELD" --no-detect --no-guard -p terraform /usr/bin/true 2>&1) || happy_status=$?
+if ! echo "$happy_out" | grep -q "Profile not found" &&
+    { [[ $happy_status -eq 0 ]] || echo "$happy_out" | grep -q "sandbox-exec not found"; }; then
+    pass "blastshield: explicit -p terraform still succeeds"
+else
+    fail "blastshield: explicit -p terraform should assemble and continue" \
+        "status=$happy_status output=$happy_out"
 fi
 
 # Test: missing auto-detected profile still skip-and-warns and continues
@@ -230,10 +242,9 @@ cp "$PROFILES_DIR/base.sb" "$PROFILES_DIR/secrets.sb" "$optional_tmp/profiles/"
 chmod +x "$optional_tmp/blastshield"
 touch "$optional_tmp/main.tf"
 optional_status=0
-optional_out=$(cd "$optional_tmp" && ./blastshield -v --no-guard /usr/bin/true 2>&1) || optional_status=$?
-if echo "$optional_out" | grep -q "Auto-detected profile: terraform" &&
-    echo "$optional_out" | grep -q "Assembled profile:" &&
-    ! echo "$optional_out" | grep -q "Profile not found: terraform"; then
+optional_out=$(cd "$optional_tmp" && ./blastshield --no-guard /usr/bin/true 2>&1) || optional_status=$?
+if echo "$optional_out" | grep -q "Profile not found: terraform (skipping)" &&
+    { [[ $optional_status -eq 0 ]] || echo "$optional_out" | grep -q "sandbox-exec not found"; }; then
     pass "blastshield: missing auto-detected profile skip-and-warns and continues"
 else
     fail "blastshield: missing auto-detected profile should skip-and-warn and continue" \

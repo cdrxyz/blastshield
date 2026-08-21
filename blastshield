@@ -269,7 +269,10 @@ assemble_profile() {
                 if is_explicit_profile "$name"; then
                     die "Profile not found: $name"
                 fi
-                warn "Profile not found: $name (skipping)"
+                # warn() writes stdout; send it to stderr so this skip line
+                # cannot leak into the assembled SBPL as raw text.
+                warn "Profile not found: $name (skipping)" >&2
+                echo ";; Profile not found: $name (skipping)"
                 continue
             fi
 
@@ -496,7 +499,7 @@ main() {
         case "$1" in
             -p|--profile)
                 [[ $# -lt 2 ]] && die "--profile requires an argument"
-                [[ -z "$2" ]] && die "--profile requires a non-empty name"
+                [[ "$2" != *[![:space:]]* ]] && die "--profile requires a non-empty name"
                 extra_profiles+=("$2")
                 explicit_profiles+=("$2")
                 shift 2
