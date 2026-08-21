@@ -226,15 +226,25 @@ assemble_profile() {
     local output_file="$1"
     shift
     local profile_names=("$@")
-    local home_dir project_dir tmp_dir
+    local home_dir project_dir tmp_dir guard_dir
     home_dir="$(cd "$HOME" && pwd -P)"
     project_dir="$(pwd -P)"
     tmp_dir="$(cd "${TMPDIR:-/tmp}" && pwd -P)"
 
-    local home_replacement project_replacement tmp_replacement
+    # Runtime wrappers are created before assembly so this path is real.
+    # When guards are disabled or no CLIs were wrapped, substitute a path
+    # that is not under any allowed write root.
+    if [[ -n "${BLASTSHIELD_TMP_GUARD_DIR:-}" && -d "$BLASTSHIELD_TMP_GUARD_DIR" ]]; then
+        guard_dir="$(cd "$BLASTSHIELD_TMP_GUARD_DIR" && pwd -P)"
+    else
+        guard_dir="/var/empty/blastshield.no-runtime-guard"
+    fi
+
+    local home_replacement project_replacement tmp_replacement guard_replacement
     home_replacement="$(sed_escape_replacement "$home_dir")"
     project_replacement="$(sed_escape_replacement "$project_dir")"
     tmp_replacement="$(sed_escape_replacement "$tmp_dir")"
+    guard_replacement="$(sed_escape_replacement "$guard_dir")"
 
     {
         # Header
@@ -268,10 +278,19 @@ assemble_profile() {
             sed -E '/^\(version 1\)$/d; /^\(deny default\)$/d; /^;; .*Profile:/d' "$path" |
                 sed -e "s/_HOME/$home_replacement/g" \
                     -e "s/_PROJECT_DIR/$project_replacement/g" \
-                    -e "s/_TMPDIR/$tmp_replacement/g"
+                    -e "s/_TMPDIR/$tmp_replacement/g" \
+                    -e "s/_GUARD_DIR/$guard_replacement/g"
 
             echo ""
         done
+
+        # Seatbelt is last-match-wins. Emit this deny after every included
+        # profile so a later custom -p that re-allows temp cannot reopen
+        # the runtime wrapper directory.
+        echo ";; ═══ Runtime guard wrappers ═══"
+        echo ";; Last-match-wins: deny writes after any later profile that re-allows temp."
+        echo "(deny file-write* (subpath \"$guard_dir\"))"
+        echo ""
 
     } > "$output_file"
 }
@@ -388,6 +407,7 @@ setup_runtime_guards() {
 
     local target_dir
     target_dir=$(mktemp -d "${TMPDIR:-/tmp}/blastshield.guard.XXXXXX")
+    target_dir="$(cd "$target_dir" && pwd -P)"
     BLASTSHIELD_TMP_GUARD_DIR="$target_dir"
 
     BLASTSHIELD_GUARD_INSTALL_QUIET=1 "$GUARD_SCRIPT" install "$target_dir"
@@ -681,10 +701,8 @@ HELP
     BLASTSHIELD_TMP_PROFILE="$tmp_profile"
     trap cleanup EXIT
 
-    assemble_profile "$tmp_profile" "${profiles[@]}"
-
-    $verbose && info "Assembled profile: $tmp_profile"
-
+    # Create runtime wrappers before assembling the profile so _GUARD_DIR
+    # can be substituted into the Layer 1 deny that protects those files.
     if $guard_enabled; then
         setup_runtime_guards
 
@@ -694,6 +712,10 @@ HELP
 
         $verbose && [[ -n "${BLASTSHIELD_TMP_GUARD_DIR:-}" ]] && info "Runtime guard: $BLASTSHIELD_TMP_GUARD_DIR"
     fi
+
+    assemble_profile "$tmp_profile" "${profiles[@]}"
+
+    $verbose && info "Assembled profile: $tmp_profile"
 
 
     # Clean environment if requested

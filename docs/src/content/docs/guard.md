@@ -31,10 +31,11 @@ Exit 1; run it yourself outside the agent sandbox
 
 1. **Runtime wrappers** — `blastshield` creates temporary wrappers for guarded CLIs found on your current PATH
 2. **PATH interception** — The temporary guard directory is prepended to PATH before the sandboxed command starts
-3. **Read-only check** — Each wrapper checks if the subcommand is in the read-only allowlist
-4. **Default deny** — If the subcommand isn't read-only, it is treated as mutating
-5. **Runtime block** — Inside `blastshield`, mutating commands exit with a clear block message
-6. **Pass-through** — Read-only commands execute immediately without any interruption
+3. **Write protection** — The assembled sandbox denies writes to that directory, so a process inside the sandbox cannot overwrite or replace the wrappers
+4. **Read-only check** — Each wrapper checks if the subcommand is in the read-only allowlist
+5. **Default deny** — If the subcommand isn't read-only, it is treated as mutating
+6. **Runtime block** — Inside `blastshield`, mutating commands exit with a clear block message
+7. **Pass-through** — Read-only commands execute immediately without any interruption
 
 ## Installation
 

@@ -66,6 +66,7 @@ The foundation of every BlastShield session. Establishes a deny-by-default polic
 | Grok Build runtime writes | Allowed under `~/.grok` for sessions, memory, logs, sockets, and auto-update binaries; auth, config, policy, skills, plugins, and hooks stay protected |
 | Gradle cache/state writes | Allowed under `~/.gradle`, except user-level init/config files |
 | Browser / OAuth opens | Allowed via Launch Services (`lsopen`) so CLI agents can open the system browser for login and MCP OAuth |
+| Runtime guard wrappers | Denied writes under `_GUARD_DIR` (the temporary Layer 2 wrapper directory prepended to `PATH`); the deny is also emitted last in the assembled profile so later custom profiles cannot re-allow it |
 | Mount/unmount | Denied |
 | IOKit | Denied |
 

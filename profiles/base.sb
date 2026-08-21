@@ -2,7 +2,7 @@
 ;; Always loaded. Provides: filesystem read, process exec, temp writes,
 ;; project writes, and blocks destructive system operations.
 ;;
-;; Parameters injected by wrapper: _HOME, _PROJECT_DIR, _TMPDIR
+;; Parameters injected by wrapper: _HOME, _PROJECT_DIR, _TMPDIR, _GUARD_DIR
 
 (version 1)
 
@@ -56,6 +56,13 @@
 
 ;; ═══ Filesystem: Protected Write Paths ═══
 ;; Block writes to dangerous locations even within project dir
+
+;; Runtime Layer 2 wrappers live under temp (see _TMPDIR / /private/tmp /
+;; /var/folders allows above). Deny writes so a sandboxed process cannot
+;; overwrite $PATH's first terraform/aws/kubectl wrapper and skip is_mutating.
+;; assemble_profile also emits this deny last so a later custom -p that
+;; re-allows temp cannot reopen the path (Seatbelt last-match-wins).
+(deny file-write* (subpath "_GUARD_DIR"))
 
 ;; No writing to .git internals (hooks, config) — prevents persistence
 (deny file-write* (subpath "_PROJECT_DIR/.git/hooks"))
