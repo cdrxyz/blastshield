@@ -542,6 +542,71 @@ else
     pass "blastshield-guard check npm -g install: correctly blocked"
 fi
 
+# Test: guard check — empty args on a guarded CLI fail closed
+if "$GUARD" check terraform 2>&1; then
+    fail "blastshield-guard check terraform: empty args should be blocked"
+else
+    pass "blastshield-guard check terraform: empty args correctly blocked"
+fi
+
+# Test: guard check — flags-only on a guarded CLI fail closed
+if "$GUARD" check terraform --auto-approve 2>&1; then
+    fail "blastshield-guard check terraform --auto-approve: flags-only should be blocked"
+else
+    pass "blastshield-guard check terraform --auto-approve: flags-only correctly blocked"
+fi
+
+# Test: guard check — first-word readonly collision cannot hide apply
+if "$GUARD" check terraform --var plan apply 2>&1; then
+    fail "blastshield-guard check terraform --var plan apply: should be blocked"
+else
+    pass "blastshield-guard check terraform --var plan apply: first-word collision correctly blocked"
+fi
+
+# Test: guard check — last-word readonly collision cannot hide apply
+if "$GUARD" check terraform apply --var plan 2>&1; then
+    fail "blastshield-guard check terraform apply --var plan: should be blocked"
+else
+    pass "blastshield-guard check terraform apply --var plan: last-word collision correctly blocked"
+fi
+
+# Test: guard check — kubectl first-word collision (namespace value "get")
+if "$GUARD" check kubectl --namespace get delete 2>&1; then
+    fail "blastshield-guard check kubectl --namespace get delete: should be blocked"
+else
+    pass "blastshield-guard check kubectl --namespace get delete: first-word collision correctly blocked"
+fi
+
+# Test: guard check — kubectl last-word collision (namespace value "get")
+if "$GUARD" check kubectl delete --namespace get 2>&1; then
+    fail "blastshield-guard check kubectl delete --namespace get: should be blocked"
+else
+    pass "blastshield-guard check kubectl delete --namespace get: last-word collision correctly blocked"
+fi
+
+# Test: guard check — gcloud first-word collision (project value "list")
+if "$GUARD" check gcloud --project list delete 2>&1; then
+    fail "blastshield-guard check gcloud --project list delete: should be blocked"
+else
+    pass "blastshield-guard check gcloud --project list delete: first-word collision correctly blocked"
+fi
+
+# Test: guard check — aws first-word glob collision (profile value "s3_ls")
+if "$GUARD" check aws --profile s3_ls s3 rb 2>&1; then
+    fail "blastshield-guard check aws --profile s3_ls s3 rb: should be blocked"
+else
+    pass "blastshield-guard check aws --profile s3_ls s3 rb: first-word collision correctly blocked"
+fi
+
+# Test: guard check — help/version-only flags are allowed
+if "$GUARD" check terraform --version 2>&1 &&
+    "$GUARD" check npm -v 2>&1 &&
+    "$GUARD" check kubectl --help 2>&1; then
+    pass "blastshield-guard check help/version-only flags: correctly allowed"
+else
+    fail "blastshield-guard check help/version-only flags: should be allowed"
+fi
+
 # Test: guard check — npm with flags (npm install -g react) blocked
 if "$GUARD" check npm install -g react 2>&1; then
     fail "blastshield-guard check npm install -g react: should be blocked"

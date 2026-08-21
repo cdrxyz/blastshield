@@ -135,8 +135,8 @@ get_subcommand() {
                 # Flag only — do not consume the next word. Boolean flags such
                 # as --auto-approve or -g would otherwise swallow the subcommand
                 # (`terraform --auto-approve apply`, `npm -g install`).
-                # Value-taking flags use --flag=value, or leave a non-command
-                # token that matching still classifies via first/last word.
+                # Space-separated values stay in the word list; mutating tokens
+                # win so a readonly-looking value cannot hide a later verb.
                 ;;
             *)
                 # Non-flag word — collect all words for subcommand matching
@@ -218,6 +218,79 @@ matches_pattern() {
     return 1
 }
 
+# True if token matches a glob pattern, case-insensitively.
+# Patterns without * also match token-* so ec2_terminate covers
+# ec2_terminate-instances.
+token_matches_pattern() {
+    local token="$1"
+    local patterns="$2"
+    local token_lc pattern
+    local IFS_OLD="$IFS"
+
+    token_lc=$(printf '%s' "$token" | tr '[:upper:]' '[:lower:]')
+    IFS=','
+    for pattern in $patterns; do
+        IFS="$IFS_OLD"
+        pattern=$(echo "$pattern" | xargs)
+        [[ -z "$pattern" ]] && continue
+        case "$token_lc" in
+            $pattern)
+                return 0
+                ;;
+        esac
+        if [[ "$pattern" != *'*'* && "$token_lc" == "$pattern"-* ]]; then
+            return 0
+        fi
+    done
+    IFS="$IFS_OLD"
+    return 1
+}
+
+# True if any single word or adjacent pair matches a pattern.
+# Adjacent pairs catch service_operation verbs (s3_rb, ec2_terminate)
+# so a readonly-looking flag value in first/last position cannot hide
+# a later mutating verb (`aws --profile s3_ls s3 rb`).
+any_token_matches_pattern() {
+    local subcmd="$1"
+    local patterns="$2"
+    [[ -z "$subcmd" ]] && return 1
+
+    local -a words=()
+    local word i
+    read -r -a words <<< "$subcmd"
+
+    for word in "${words[@]}"; do
+        token_matches_pattern "$word" "$patterns" && return 0
+    done
+
+    for ((i = 0; i < ${#words[@]} - 1; i++)); do
+        token_matches_pattern "${words[$i]}_${words[$((i + 1))]}" "$patterns" && return 0
+    done
+
+    return 1
+}
+
+# Allow terraform --version / npm -v / kubectl --help when that is the
+# whole command. Does not reopen flag-before-subcommand bypasses: a
+# following non-flag word is classified normally.
+is_help_or_version_flags_only() {
+    local arg
+    local found=false
+    for arg in "$@"; do
+        case "$arg" in
+            --help|-h|-help|--version|-v|-V|-version|--version=*|--help=*)
+                found=true
+                ;;
+            -*)
+                ;;
+            *)
+                return 1
+                ;;
+        esac
+    done
+    [[ "$found" == true ]]
+}
+
 is_readonly_gh_api() {
     local args=("$@")
     local method=""
@@ -274,7 +347,17 @@ is_readonly() {
     local subcmd
     subcmd=$(get_subcommand "$@")
 
-    [[ -z "$subcmd" ]] && return 1
+    if [[ -z "$subcmd" ]]; then
+        is_help_or_version_flags_only "$@"
+        return $?
+    fi
+
+    local mutating_patterns
+    if mutating_patterns=$(get_mutating_patterns "$cli") 2>/dev/null; then
+        if any_token_matches_pattern "$subcmd" "$mutating_patterns"; then
+            return 1
+        fi
+    fi
 
     if [[ "$cli" == "gh" ]]; then
         local normalized_subcmd="${subcmd// /_}"
@@ -297,13 +380,21 @@ is_mutating() {
     local subcmd
     subcmd=$(get_subcommand "$@")
 
+    # Mutating tokens win over first/last-word readonly matches from
+    # leftover space-separated flag values (`terraform --var plan apply`).
+    local patterns
+    if [[ -n "$subcmd" ]] && patterns=$(get_mutating_patterns "$cli") 2>/dev/null; then
+        if any_token_matches_pattern "$subcmd" "$patterns"; then
+            return 0
+        fi
+    fi
+
     # First check if it's explicitly read-only
     if is_readonly "$cli" "$@"; then
         return 1
     fi
 
     # If we have explicit mutating patterns, check those
-    local patterns
     if [[ -n "$subcmd" ]] && patterns=$(get_mutating_patterns "$cli") 2>/dev/null; then
         if matches_pattern "$subcmd" "$patterns"; then
             return 0
