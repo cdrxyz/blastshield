@@ -479,6 +479,20 @@ else
     fail "blastshield-guard check yarn config get: should be allowed"
 fi
 
+# Test: guard check — yarn config list still allowed (read-only)
+if "$GUARD" check yarn config list 2>&1; then
+    pass "blastshield-guard check yarn config list: correctly allowed (read-only)"
+else
+    fail "blastshield-guard check yarn config list: should be allowed"
+fi
+
+# Test: guard check — yarn config delete blocked (mutating)
+if "$GUARD" check yarn config delete foo 2>&1; then
+    fail "blastshield-guard check yarn config delete: should be blocked"
+else
+    pass "blastshield-guard check yarn config delete: correctly blocked"
+fi
+
 # Test: guard check — pnpm add blocked
 if "$GUARD" check pnpm add 2>&1; then
     fail "blastshield-guard check pnpm add: should be blocked"
@@ -506,6 +520,13 @@ if "$GUARD" check pnpm config get foo 2>&1 &&
     pass "blastshield-guard check pnpm config get/list: correctly allowed (read-only)"
 else
     fail "blastshield-guard check pnpm config get/list: should be allowed"
+fi
+
+# Test: guard check — pnpm config delete blocked (mutating)
+if "$GUARD" check pnpm config delete foo 2>&1; then
+    fail "blastshield-guard check pnpm config delete: should be blocked"
+else
+    pass "blastshield-guard check pnpm config delete: correctly blocked"
 fi
 
 # Test: guard check — pip install blocked
@@ -562,6 +583,13 @@ if "$GUARD" check brew tap homebrew/cask 2>&1; then
     fail "blastshield-guard check brew tap name: should be blocked"
 else
     pass "blastshield-guard check brew tap name: correctly blocked"
+fi
+
+# Test: guard check — brew tap-new blocked (mutating)
+if "$GUARD" check brew tap-new foo/bar 2>&1; then
+    fail "blastshield-guard check brew tap-new: should be blocked"
+else
+    pass "blastshield-guard check brew tap-new: correctly blocked"
 fi
 
 # Test: guard check — gem install blocked

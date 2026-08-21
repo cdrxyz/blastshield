@@ -11,6 +11,7 @@ description: Recent BlastShield releases and the fixes included in each version.
 - Adds `blastshield-guard check` unit tests for each flipped command.
 - Updates the guard and architecture tables so they no longer describe those commands as read-only.
 - Closes leftover same-class allowlist holes: `gem install <name>` no longer matches readonly `install_*`; `brew tap*` and first-word `yarn`/`pnpm config` no longer treat `brew tap <name>` or `config set` as read-only.
+- Locks `blastshield-guard check` for `yarn`/`pnpm config list` (allowed), `yarn`/`pnpm config delete` (blocked), and `brew tap-new` (blocked).
 
 ## v0.1.20 — 2026-07-14
 
