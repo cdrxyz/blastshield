@@ -6,9 +6,10 @@ description: Recent BlastShield releases and the fixes included in each version.
 ## v0.1.21 — 2026-08-21
 
 - Aborts when an explicit `-p` / `--profile` name cannot be resolved, instead of warning and launching without that layer.
+- Rejects an empty `-p` / `--profile` name at parse time.
 - Leaves missing auto-detected profiles as skip-and-warn so optional project detection still does not block a normal launch.
 - Documents the hard fail in `--help` and the profiles reference.
-- Adds a wrapper test that an unknown `-p` name exits non-zero and does not run the command.
+- Adds wrapper tests for unknown and empty `-p` names, a valid explicit profile, and skip-and-warn for a missing auto-detected profile.
 
 ## v0.1.20 — 2026-07-14
 

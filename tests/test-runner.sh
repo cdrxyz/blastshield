@@ -200,6 +200,49 @@ else
 fi
 rm -f "$unknown_marker"
 
+# Test: empty explicit -p/--profile name is fatal at parse time
+empty_marker=$(mktemp "${TMPDIR:-/tmp}/blastshield-empty-profile.XXXXXX")
+rm -f "$empty_marker"
+empty_status=0
+empty_out=$("$BLASTSHIELD" --no-detect --no-guard -p '' /bin/sh -c "printf ran > '$empty_marker'" 2>&1) || empty_status=$?
+if [[ $empty_status -ne 0 && ! -e "$empty_marker" ]] && echo "$empty_out" | grep -Fq -- '--profile requires a non-empty name'; then
+    pass "blastshield: empty explicit -p profile aborts without running the command"
+else
+    fail "blastshield: empty explicit -p profile should abort without running the command" \
+        "status=$empty_status marker=$([[ -e $empty_marker ]] && echo present || echo absent) output=$empty_out"
+fi
+rm -f "$empty_marker"
+
+# Test: a real explicit profile still works
+if version_with_profile=$("$BLASTSHIELD" -p terraform --version 2>&1) &&
+    [[ "$version_with_profile" =~ ^blastshield\ v[0-9] ]] &&
+    ! echo "$version_with_profile" | grep -q "Profile not found"; then
+    pass "blastshield: explicit -p terraform --version still succeeds"
+else
+    fail "blastshield: explicit -p terraform --version should succeed" "Got: $version_with_profile"
+fi
+
+# Test: missing auto-detected profile still skip-and-warns and continues
+optional_tmp=$(mktemp -d "${TMPDIR:-/tmp}/blastshield-optional-profile.XXXXXX")
+mkdir -p "$optional_tmp/profiles"
+cp "$BLASTSHIELD" "$optional_tmp/blastshield"
+cp "$PROFILES_DIR/base.sb" "$PROFILES_DIR/secrets.sb" "$optional_tmp/profiles/"
+chmod +x "$optional_tmp/blastshield"
+touch "$optional_tmp/main.tf"
+optional_marker="$optional_tmp/ran"
+rm -f "$optional_marker"
+optional_status=0
+optional_out=$(cd "$optional_tmp" && ./blastshield -v --no-guard /bin/sh -c "printf ran > '$optional_marker'" 2>&1) || optional_status=$?
+if echo "$optional_out" | grep -q "Auto-detected profile: terraform" &&
+    ! echo "$optional_out" | grep -q "Profile not found: terraform" &&
+    { [[ -e "$optional_marker" ]] || echo "$optional_out" | grep -q "sandbox-exec not found"; }; then
+    pass "blastshield: missing auto-detected profile skip-and-warns and continues"
+else
+    fail "blastshield: missing auto-detected profile should skip-and-warn and continue" \
+        "status=$optional_status output=$optional_out"
+fi
+rm -rf "$optional_tmp"
+
 # ─── Guard Tests ──────────────────────────────────────────────────────────
 
 section "BlastShield Guard Tests"
